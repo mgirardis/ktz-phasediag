@@ -21,3 +21,7 @@ to get help with the parameters
 the script 'import_isiData.m' imports the data
 
 the script 'averageISI.m' is used to generate a structure with useful information for plotting
+
+# reference
+
+code for the paper https://journals.plos.org/plosone/article/comments?id=10.1371/journal.pone.0174621
