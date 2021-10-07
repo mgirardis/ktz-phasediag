@@ -5,7 +5,7 @@ module Simulation
     use precision
     
     type KTzParam
-        real(kr8) :: K, T, d, l, xR, H
+        real(kr8) :: K, T, d, l, xR, H, Z
     end type KTzParam
 
     abstract interface
@@ -17,7 +17,7 @@ module Simulation
         end function KTzIterator
     end interface
 
-    private :: SimulaPara_xR_T, KTzLogIter, KTzTanhIter, KTzIterator
+    private :: SimulaPara_xR_T, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
     private :: unique, findISI, logisticFunc, GetKTzParams, GetKTzParamValue
     public :: Simula
 contains
@@ -47,6 +47,8 @@ contains
             KTzFunc => KTzLogIter
         else if (par%model == "T") then
             KTzFunc => KTzTanhIter
+        else if (par%model == "2") then
+            KTzFunc => K2TzIter
         else
             write (*,*) 'ERROR! Unrecognized model'
             stop
@@ -140,6 +142,7 @@ contains
         neuPar%l = GetKTzParamValue("l ",pA,pB)
         neuPar%xR = GetKTzParamValue("xR",pA,pB)
         neuPar%H = GetKTzParamValue("H ",pA,pB)
+        neuPar%Z = GetKTzParamValue("Z ",pA,pB)
     end function GetKTzParams
     
     function GetKTzParamValue(p,pA,pB) result (v)
@@ -163,8 +166,10 @@ contains
                 v = par%l
             else if (trim(p) == "xR") then
                 v = par%xR
-            else
+            else if (trim(p) == "H") then
                 v = par%H
+            else
+                v = par%Z
             end if
         end if
     end function GetKTzParamValue
@@ -200,23 +205,23 @@ contains
 
         x = par%x0
         do tt = 1,par%tTransient
-        	xAnt = x(1)
+            xAnt = x(1)
             x = KTzFunc(neuPar, x)
             if (dabs(x(1) - xAnt) <= 1.0e-8) then
-            	isFP = .true.
-            	exit
+                isFP = .true.
+                exit
             end if
         end do
         if (.not.isFP) then
-	        do while (x(1) > par%xThreshold) ! garantindo que o loop principal começara com x(i)<0
-	        	xAnt = x(1);
-	            x = KTzFunc(neuPar, x)
-	            if (dabs(x(1) - xAnt) <= 1.0e-8) then
-	            	isFP = .true.
-	            	exit
-	            end if
-	        end do
-    	end if
+            do while (x(1) > par%xThreshold) ! garantindo que o loop principal começara com x(i)<0
+                xAnt = x(1);
+                x = KTzFunc(neuPar, x)
+                if (dabs(x(1) - xAnt) <= 1.0e-8) then
+                    isFP = .true.
+                    exit
+                end if
+            end do
+        end if
         t1 = 0
         t2 = 0
         ts = 0
@@ -225,26 +230,26 @@ contains
         xAnt = x(1)
         k = 0
         if (.not.isFP) then
-	        do tt = 2,tEff ! loop principal
-	            x = KTzFunc(neuPar, x)
-	            if (dabs(x(1) - xAnt) <= 1.0e-8) then
-	            	isFP = .true.
-	            	exit
-            	end if
-	            if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! cruzou o eixo x = xThreshold
-	                if (modulo(crossCounter,2) == 0) then ! como começou abaixo de x = 0, crossCounter par significa subindo
-	                    t1 = (dble(tt - 1) + dble(tt)) / 2.0D0
-	                else ! crossCounter impar significa descendo
-	                    t2 = (dble(tt - 1) + dble(tt)) / 2.0D0
-	                    ts = (t1 + t2) / 2.0D0 ! o instante do disparo eh a media entre tempo subida (t1) e descida (t2)
-	                    k = k + 1 ! k = qtd de ISI achados
-	                    isiData(k) = ts - tsA
-	                    tsA = ts
-	                end if
-	                crossCounter = crossCounter + 1
-	            end if
-	            xAnt = x(1)
-	        end do
+            do tt = 2,tEff ! loop principal
+                x = KTzFunc(neuPar, x)
+                if (dabs(x(1) - xAnt) <= 1.0e-8) then
+                    isFP = .true.
+                    exit
+                end if
+                if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! cruzou o eixo x = xThreshold
+                    if (modulo(crossCounter,2) == 0) then ! como começou abaixo de x = 0, crossCounter par significa subindo
+                        t1 = (dble(tt - 1) + dble(tt)) / 2.0D0
+                    else ! crossCounter impar significa descendo
+                        t2 = (dble(tt - 1) + dble(tt)) / 2.0D0
+                        ts = (t1 + t2) / 2.0D0 ! o instante do disparo eh a media entre tempo subida (t1) e descida (t2)
+                        k = k + 1 ! k = qtd de ISI achados
+                        isiData(k) = ts - tsA
+                        tsA = ts
+                    end if
+                    crossCounter = crossCounter + 1
+                end if
+                xAnt = x(1)
+            end do
         end if
         
         if (allocated(isi)) then
@@ -397,9 +402,19 @@ contains
         x(1) = logisticFunc((xAnt(1) - neuPar%K * xAnt(2) + xAnt(3) + neuPar%H) / neuPar%T)
     end function KTzLogIter
 
+    function K2TzIter(neuPar, xAnt) result (x)
+        implicit none
+        real(kr8) :: x(3), xAnt(3)
+        type(KTzParam) :: neuPar
+        x(2) = dtanh( (xAnt(1) + neuPar%H) / neuPar%T )
+        x(3) = (1.0D0 - neuPar%d) * xAnt(3) - neuPar%l * (xAnt(1) - neuPar%xR)
+        x(1) = dtanh((xAnt(1) - neuPar%K * xAnt(2) + xAnt(3) + neuPar%Z) / neuPar%T)
+    end function K2TzIter
+
     function logisticFunc(x) result(y)
         implicit none
         real(kr8) :: x, y
         y = x / (1.0D0 + dabs(x))
     end function logisticFunc
+
 end module Simulation 

@@ -1,0 +1,74 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "compile debug windows",
+            "type": "shell",
+            "command": ".\\compile_dbg.ps1",
+            "group": "build"
+        },
+        {
+            "label": "compile debug linux",
+            "type": "shell",
+            "command": "./compile_dbg.sh",
+            "group": "build"
+        },
+        {
+            "label": "compile gfortran windows",
+            "type": "shell",
+            "command": ".\\compile_gfortran.ps1",
+            "group": "build"
+        },
+        {
+            "label": "compile gfortran linux",
+            "type": "shell",
+            "command": "./compile_gfortran.sh",
+            "group": "build"
+        },
+        {
+            "label": "compile ifort linux",
+            "type": "shell",
+            "command": "./compile_ifort.sh",
+            "group": "build"
+        },
+        {
+            "label": "compile ifort windows",
+            "type": "shell",
+            "command": ".\\compile_ifort.bat",
+            "group": "build"
+        }
+        /*{
+            "label": "compile ifort windows",
+            "dependsOn": [
+                "open cmd for ifort windows",
+                "load ifort vars windows",
+                "call compile ifort windows"
+            ],
+            "dependsOrder": "sequence",
+            "group": "build"
+        },
+        {
+            "label": "open cmd for ifort windows",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/E:ON",
+                "/V:ON"
+            ]
+        },
+        {
+            "label": "load ifort vars windows",
+            "type": "shell",
+            "command": "\"$Env:IFORT_COMPILER19\\bin\\ipsxe-comp-vars.bat\"",
+            "args": [
+                "intel64",
+                "vs2019"
+            ]
+        },
+        {
+            "label": "call compile ifort windows",
+            "type": "shell",
+            "command": ".\\compile_ifort.bat"
+        }*/
+    ]
+}

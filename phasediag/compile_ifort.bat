@@ -1,12 +1,15 @@
 @echo off
-mkdir run
-ifort /c tokenize_module.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
-ifort /c precision_module.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
-ifort /c string_module.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
-ifort /c input_module.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
-ifort /c output_module.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
-ifort /c simulation_module.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
-ifort tokenize_module.obj precision_module.obj string_module.obj input_module.obj output_module.obj simulation_module.obj main.f90 /O3 /Qparallel /fp:fast /Qsave /exe:run\isi.exe
+if not exist run ( mkdir run )
+
+@call "%IFORT_COMPILER19%\bin\ipsxe-comp-vars.bat" intel64 vs2019
+
+ifort /c tokenize.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
+ifort /c precision.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
+ifort /c string.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
+ifort /c input.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
+ifort /c output.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
+ifort /c simulation.f90 /O3 /Qparallel /fp:fast /Qfast-transcendentals /Qsave /nodebug
+ifort tokenize.obj precision.obj string.obj input.obj output.obj simulation.obj main.f90 /O3 /Qparallel /fp:fast /Qsave /exe:run\isi.exe
 
 del *.obj
-del *.mod
+:: del *.mod
