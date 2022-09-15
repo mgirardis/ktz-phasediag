@@ -26,6 +26,7 @@ module Input
     character(len=20) , parameter :: par_xThreshold = "xThreshold"
     character(len=20) , parameter :: par_writeOnRun = "writeOnRun"
     character(len=20) , parameter :: par_outFileSuffix = "outFileSuffix"
+    character(len=20) , parameter :: par_outFileDir = "outFileDir"
 
     type inputParam
         real(kr8) :: parB1, parB2, parA1, parA2, K, T, d, l, xR, H, Z
@@ -35,6 +36,7 @@ module Input
         character(len=2)   :: parA, parB
         character(len=3)   :: measure
         character(len=128) :: outFileSuffix
+        character(len=100) :: outFileDir
         logical :: writeOnRun
     end type inputParam
 
@@ -95,12 +97,29 @@ contains
     end function pegaStrParamEntrada
 
     function pegaNomeArqSaida() result (nome)
-        character(len=256) :: nome
-        write (nome,'(A,F0.3,A,F0.3,A,F0.3,A,F0.3,A,F0.3,A,F0.3,A,F0.3,F0.3,A)') &
-            trim(par%measure)//'_'//trim(par%parA)//'vs'//trim(par%parB)//&
-            '_K',par%K,'_T',par%T,'_d',par%d,'_l',par%l,'_xR',par%xR,'_Z',par%Z,&
-            '_H',par%H,'_th',par%xThreshold,&
+        character(len=512) :: nome
+        !write(*,*) 'c4'
+        !write(*,*) trim(par%outFileSuffix)
+        write (nome,'(A,F0.3,&
+                      A,F0.3,&
+                      A,F0.3,&
+                      A,F0.3,&
+                      A,F0.3,&
+                      A,F0.3,&
+                      A,F0.3,&
+                      A,F0.3,&
+                      A)') &
+            trim(par%outFileDir)//'/'//trim(par%measure)//'_'//trim(par%parA)//'vs'//trim(par%parB)//&
+            '_K',par%K,&
+            '_T',par%T,&
+            '_d',par%d,&
+            '_l',par%l,&
+            '_xR',par%xR,&
+            '_Z',par%Z,&
+            '_H',par%H,&
+            '_th',par%xThreshold,&
             '_model'//trim(par%model)//'_'//trim(par%outFileSuffix)//'.dat'
+        !write(*,*) 'c5'
     end function pegaNomeArqSaida
 
     subroutine inicializaParametros()
@@ -127,6 +146,7 @@ contains
         par%xThreshold = 0.0D0
         par%writeOnRun = .false.
         par%outFileSuffix = ''
+        par%outFileDir = '.'
     end subroutine inicializaParametros
 
     ! adjusts the values of the parameters defined in the file
@@ -218,6 +238,8 @@ contains
                 par%measure = trim(parVal(2))
             else if (parVal(1) == par_outFileSuffix) then
                 par%outFileSuffix = trim(parVal(2))
+            else if (parVal(1) == par_outFileDir) then
+                par%outFileDir = trim(parVal(2))
             else if (parVal(1) == par_writeOnRun) then
                 if (strToInteger(parVal(2)) == 1) then
                     par%writeOnRun = .true.
@@ -285,7 +307,8 @@ contains
                         xThreshold=VALOR_NUMERICO &
                         model=L_ou_T_ou_2 measure=ISI_ou_AMP &
                         writeOnRun=0_ou_1 &
-                        outFileSuffix=OUTPUT_FILE_NAME_SUFFIX'
+                        outFileSuffix=OUTPUT_FILE_NAME_SUFFIX &
+                        outFileDir=OUTPUT_FILE_DIR'
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) ' '
@@ -334,6 +357,8 @@ contains
                                    a simulacao (previne erro por falta de memoria)'
         write (*,'(A11,A,A10,A)')    trim(par_outFileSuffix)//' ',   '-> [padrao: ',trim(par%outFileSuffix),'] sufixo pro nome &
                                                                         do arq de saida'
+        write (*,'(A11,A,A10,A)')    trim(par_outFileDir)//' ',   '-> [padrao: ',trim(par%outFileDir),'] diretorio pro  &
+                                                                            arq de saida'
         write (*,*) 'help,-h   -> mostra essa ajuda'
     end subroutine PrintHelp
 

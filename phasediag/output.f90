@@ -9,8 +9,8 @@ contains
 
     function AbreArquivo(stat, act, header, ofileName) result (u)
         character(len=*) :: header, stat, act
-        character(len=256), intent(inout) :: ofileName
-        character(len=256) :: fileName
+        character(len=512), intent(inout) :: ofileName
+        character(len=512) :: fileName
         integer :: u, ios
 
         if (act == "write") then
@@ -32,7 +32,7 @@ contains
                               ofileName)
         real(kr8), intent(in) :: col1(:), col2(:), col3(:), col4(:)
         character(len=*) :: header, formatStr, ofileName
-        character(len=256) :: fileName
+        character(len=512) :: fileName
         integer :: i, n
 
         fileName = VerificaNomeArquivo(ofileName)
@@ -54,7 +54,7 @@ contains
 
     function VerificaNomeArquivo(fileName) result (newFileName)
         character(len=*) :: fileName
-        character(len=256) :: newFileName, fNamePrefix
+        character(len=512) :: newFileName, fNamePrefix
         character(len=10) :: fExt, ind
         logical :: fileExists
         integer :: i
@@ -79,7 +79,7 @@ contains
 
     subroutine SeparaNomeExtensao(fileName, fileNamePrefix, ext)
         character(len=*), intent(in) :: fileName
-        character(len=256), intent(out) :: fileNamePrefix
+        character(len=512), intent(out) :: fileNamePrefix
         character(len=10), intent(out) :: ext
         integer :: ind, n
 

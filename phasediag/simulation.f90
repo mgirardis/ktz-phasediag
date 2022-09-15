@@ -32,7 +32,7 @@ contains
                                                  isiData(:), intData(:)
         real(kr8), allocatable :: isi(:), parBDataTemp(:), parADataTemp(:)
         real(kr8), allocatable :: isiDataTemp(:), intDataTemp(:), intensity(:)
-        character(len=256) :: nomeArqSaida
+        character(len=512) :: nomeArqSaida
         integer :: i, j, k, m, n, u
         logical :: isISI
         type(KTzParam) :: neuPar
@@ -53,6 +53,7 @@ contains
             write (*,*) 'ERROR! Unrecognized model'
             stop
         end if
+
         dparA = 0.0D0
         dparB = 0.0D0
         if (par%nparA > 1) then
@@ -61,6 +62,7 @@ contains
         if (par%nparB > 1) then
             dparB = (par%parB2 - par%parB1) / dble(par%nparB - 1)
         end if
+
 
         if (par%writeOnRun) then
             nomeArqSaida = trim(pegaNomeArqSaida())
