@@ -284,7 +284,8 @@ contains
                         tTotal=VALOR_NUMERICO tTransient=VALOR_NUMERICO &
                         xThreshold=VALOR_NUMERICO &
                         model=L_ou_T_ou_2 measure=ISI_ou_AMP &
-                        writeOnRun=0_ou_1'
+                        writeOnRun=0_ou_1 &
+                        outFileSuffix=OUTPUT_FILE_NAME_SUFFIX'
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) ' '
@@ -331,6 +332,8 @@ contains
         write (*,'(A11,A,I10.0,A)')   trim(par_writeOnRun)//' ','-> [padrao: ',temp,'] &
                                    Possiveis valores: 0 ou 1. Se for 1, escreve os arquivos de dados durante &
                                    a simulacao (previne erro por falta de memoria)'
+        write (*,'(A11,A,A10,A)')    trim(par_outFileSuffix)//' ',   '-> [padrao: ',trim(par%outFileSuffix),'] sufixo pro nome &
+                                                                        do arq de saida'
         write (*,*) 'help,-h   -> mostra essa ajuda'
     end subroutine PrintHelp
 
