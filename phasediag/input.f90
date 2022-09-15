@@ -1,38 +1,40 @@
 module Input
     use precision
     private
-    character(len=20), parameter :: par_parA = "parA"
-    character(len=20), parameter :: par_parA1 = "parA1"
-    character(len=20), parameter :: par_parA2 = "parA2"
-    character(len=20), parameter :: par_nparA = "nparA"
-    character(len=20), parameter :: par_parB = "parB"
-    character(len=20), parameter :: par_parB1 = "parB1"
-    character(len=20), parameter :: par_parB2 = "parB2"
-    character(len=20), parameter :: par_nparB = "nparB"
-    character(len=20), parameter :: par_tTransient = "tTransient"
-    character(len=20), parameter :: par_tTotal =  "tTotal"
-    character(len=20), parameter :: par_K = "K"
-    character(len=20), parameter :: par_T = "T"
-    character(len=20), parameter :: par_d = "d"
-    character(len=20), parameter :: par_l = "l"
-    character(len=20), parameter :: par_xR = "xR"
-    character(len=20), parameter :: par_H = "H"
-    character(len=20), parameter :: par_Z = "Z"
-    character(len=20), parameter :: par_x0 = "x0"
-    character(len=20), parameter :: par_y0 = "y0"
-    character(len=20), parameter :: par_z0 = "z0"
-    character(len=20), parameter :: par_model = "model"
-    character(len=20), parameter :: par_measure = "measure"
-    character(len=20), parameter :: par_xThreshold = "xThreshold"
-    character(len=20), parameter :: par_writeOnRun = "writeOnRun"
+    character(len=20) , parameter :: par_parA = "parA"
+    character(len=20) , parameter :: par_parA1 = "parA1"
+    character(len=20) , parameter :: par_parA2 = "parA2"
+    character(len=20) , parameter :: par_nparA = "nparA"
+    character(len=20) , parameter :: par_parB = "parB"
+    character(len=20) , parameter :: par_parB1 = "parB1"
+    character(len=20) , parameter :: par_parB2 = "parB2"
+    character(len=20) , parameter :: par_nparB = "nparB"
+    character(len=20) , parameter :: par_tTransient = "tTransient"
+    character(len=20) , parameter :: par_tTotal =  "tTotal"
+    character(len=20) , parameter :: par_K = "K"
+    character(len=20) , parameter :: par_T = "T"
+    character(len=20) , parameter :: par_d = "d"
+    character(len=20) , parameter :: par_l = "l"
+    character(len=20) , parameter :: par_xR = "xR"
+    character(len=20) , parameter :: par_H = "H"
+    character(len=20) , parameter :: par_Z = "Z"
+    character(len=20) , parameter :: par_x0 = "x0"
+    character(len=20) , parameter :: par_y0 = "y0"
+    character(len=20) , parameter :: par_z0 = "z0"
+    character(len=20) , parameter :: par_model = "model"
+    character(len=20) , parameter :: par_measure = "measure"
+    character(len=20) , parameter :: par_xThreshold = "xThreshold"
+    character(len=20) , parameter :: par_writeOnRun = "writeOnRun"
+    character(len=20) , parameter :: par_outFileSuffix = "outFileSuffix"
 
     type inputParam
         real(kr8) :: parB1, parB2, parA1, parA2, K, T, d, l, xR, H, Z
         real(kr8) :: x0(3), xThreshold
         integer(kind=4) :: nparA, nparB, tTotal, tTransient
-        character(len=1) :: model
-        character(len=2) :: parA, parB
-        character(len=3) :: measure
+        character(len=1)   :: model
+        character(len=2)   :: parA, parB
+        character(len=3)   :: measure
+        character(len=128) :: outFileSuffix
         logical :: writeOnRun
     end type inputParam
 
@@ -98,7 +100,7 @@ contains
             trim(par%measure)//'_'//trim(par%parA)//'vs'//trim(par%parB)//&
             '_K',par%K,'_T',par%T,'_d',par%d,'_l',par%l,'_xR',par%xR,'_Z',par%Z,&
             '_H',par%H,'_th',par%xThreshold,&
-            '_model'//trim(par%model)//'.dat'
+            '_model'//trim(par%model)//'_'//trim(par%outFileSuffix)//'.dat'
     end function pegaNomeArqSaida
 
     subroutine inicializaParametros()
@@ -124,6 +126,7 @@ contains
         par%x0 = (/ 1.0, 1.0, 1.0 /)
         par%xThreshold = 0.0D0
         par%writeOnRun = .false.
+        par%outFileSuffix = ''
     end subroutine inicializaParametros
 
     ! adjusts the values of the parameters defined in the file
@@ -213,6 +216,8 @@ contains
                 par%model = trim(parVal(2))
             else if (parVal(1) == par_measure) then
                 par%measure = trim(parVal(2))
+            else if (parVal(1) == par_outFileSuffix) then
+                par%outFileSuffix = trim(parVal(2))
             else if (parVal(1) == par_writeOnRun) then
                 if (strToInteger(parVal(2)) == 1) then
                     par%writeOnRun = .true.
