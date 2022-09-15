@@ -3,3 +3,6 @@
 *.dat
 *.txt
 *.o
+run/out
+run/err
+run/output
