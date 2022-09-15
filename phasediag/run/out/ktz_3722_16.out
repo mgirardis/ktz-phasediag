@@ -1,0 +1,78 @@
+Running task 16 ::: parA=T parA1=0.24532263204 parA2=0.24559932333 nparA=1000 parB=xR parB1=-0.2061352988 parB2=-0.20492424005 nparB=1000 x0=0.0 y0=0.0 z0=0.0 K=0.6 T=0.1 d=0.001 l=0.001 xR=-0.2 H=0.0 Z=0.0 tTotal=50000 tTransient=5000 xThreshold=0.0 model=L measure=ISI writeOnRun=1 outFileSuffix=CS_BS_ic2
+arguments: 
+parA=T
+parA1=0.24532263204
+parA2=0.24559932333
+nparA=1000
+parB=xR
+parB1=-0.2061352988
+parB2=-0.20492424005
+nparB=1000
+x0=0.0
+y0=0.0
+z0=0.0
+K=0.6
+T=0.1
+d=0.001
+l=0.001
+xR=-0.2
+H=0.0
+Z=0.0
+tTotal=50000
+tTransient=5000
+xThreshold=0.0
+model=L
+measure=ISI
+writeOnRun=1
+outFileSuffix=CS_BS_ic2
+ajustando: parA
+ -> parA = T
+ajustando: parA1
+ -> parA1 = 0.24532263204
+ajustando: parA2
+ -> parA2 = 0.24559932333
+ajustando: nparA
+ -> nparA = 1000
+ajustando: parB
+ -> parB = xR
+ajustando: parB1
+ -> parB1 = -0.2061352988
+ajustando: parB2
+ -> parB2 = -0.20492424005
+ajustando: nparB
+ -> nparB = 1000
+ajustando: x0
+ -> x0 = 0.0
+ajustando: y0
+ -> y0 = 0.0
+ajustando: z0
+ -> z0 = 0.0
+ajustando: K
+ -> K = 0.6
+ajustando: T
+ -> T = 0.1
+ajustando: d
+ -> d = 0.001
+ajustando: l
+ -> l = 0.001
+ajustando: xR
+ -> xR = -0.2
+ajustando: H
+ -> H = 0.0
+ajustando: Z
+ -> Z = 0.0
+ajustando: tTotal
+ -> tTotal = 50000
+ajustando: tTransient
+ -> tTransient = 5000
+ajustando: xThreshold
+ -> xThreshold = 0.0
+ajustando: model
+ -> model = L
+ajustando: measure
+ -> measure = ISI
+ajustando: writeOnRun
+ -> writeOnRun = 1
+ajustando: outFileSuffix
+ -> outFileSuffix = CS_BS_ic2
+ Simulando ...

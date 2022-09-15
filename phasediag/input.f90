@@ -142,7 +142,7 @@ contains
         integer, intent(out) :: ios
         integer :: i, j, strLength, tempVal, temp_tTotal
         character(len=*), intent(in) :: args(nArgs)
-        character(len=80), dimension(2) :: parVal
+        character(len=128), dimension(2) :: parVal
         type(tokenizer) :: splitStruct
         
         ios = 0 ! everything is ok

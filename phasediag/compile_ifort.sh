@@ -20,4 +20,4 @@ ifort -c simulation.f90 -O3 -parallel -fast -static
 ifort tokenize.o precision.o string.o output.o input.o simulation.o main.f90 -O3 -parallel -fast -static -o run/isi.exe
 
 #rm *.obj *.mod
-rm *.obj
+rm *.o
