@@ -468,7 +468,7 @@ contains
             if ( (s(1) == -1) .or. (s(2) == -1) ) then
                 isiper(k) = 1.0/0.0
             end if
-            write(*,*) isiper(k)
+            !write(*,*) isiper(k)
             !s1 = findFirstLoc(isi_all,isi_un(k))
             !if (s1 == n) then
             !    isiper(k) = -99999999

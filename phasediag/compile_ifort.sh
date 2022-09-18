@@ -17,7 +17,8 @@ ifort -c string.f90 -O3 -parallel -fast -static
 ifort -c input.f90 -O3 -parallel -fast -static
 ifort -c output.f90 -O3 -parallel -fast -static
 ifort -c simulation.f90 -O3 -parallel -fast -static
-ifort tokenize.o precision.o string.o output.o input.o simulation.o main.f90 -O3 -parallel -fast -static -o run/isi.exe
+ifort -c chaos.f90 -O3 -parallel -fast -static
+ifort tokenize.o precision.o string.o output.o input.o simulation.o chaos.o main.f90 -O3 -parallel -fast -static -o run/isi.exe
 
 #rm *.obj *.mod
 rm *.o
