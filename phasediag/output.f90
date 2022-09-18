@@ -28,9 +28,9 @@ contains
         u = 11
     end function AbreArquivo
 
-    subroutine EscreveArquivo(col1, col2, col3, col4, formatStr, header, &
+    subroutine EscreveArquivo(col1, col2, col3, col4, col5, formatStr, header, &
                               ofileName)
-        real(kr8), intent(in) :: col1(:), col2(:), col3(:), col4(:)
+        real(kr8), intent(in) :: col1(:), col2(:), col3(:), col4(:), col5(:)
         character(len=*) :: header, formatStr, ofileName
         character(len=512) :: fileName
         integer :: i, n
@@ -41,13 +41,13 @@ contains
         write (*,*) 'Escrevendo arquivo... ', fileName
         open(unit=11, file=trim(fileName), status='replace', action='write')
         write (11, '(A)') trim(header)
-        write (11,trim(formatStr)) col1(1), col2(1), col3(1), col4(1)
+        write (11,trim(formatStr)) col1(1), col2(1), col3(1), col4(1), col5(1)
         do i = 2, n
             if (col1(i) /= col1(i-1)) then ! colocando duas quebras de linhas
                 write (11,*)               ! entre dois xR diferentes
                 write (11,*)               ! assim, gnuplot pode plotar usando keyword index
             end if
-            write (11,trim(formatStr)) col1(i), col2(i), col3(i), col4(i)
+            write (11,trim(formatStr)) col1(i), col2(i), col3(i), col4(i), col5(i)
         end do
         close(unit=11)
     end subroutine EscreveArquivo

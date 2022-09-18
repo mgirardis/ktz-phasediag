@@ -265,8 +265,11 @@ contains
             temp = 0
         end if
         write (*,*) 'itera KTzLog, ou KTzTanh, ou K2Tz por tTotal e ignora tTransient passos de tempo'
-        write (*,*) 'calcula ISI(parA,parB), onde parA e parB podem ser quaisquer dos'
-        write (*,*) 'parametros do modelo (K,T,d,l,xR,H,Z)'
+        write (*,*) 'calcula ISI(parA,parB), ou Amplitude(parA,parB)'
+        write (*,*) 'onde parA e parB podem ser quaisquer dos parametros do modelo (K,T,d,l,xR,H,Z)'
+        write (*,*) ' '
+        write (*,*) 'quando measure=ISI -> calcula o ISI e a periodicidade de cada ISI'
+        write (*,*) 'quando measure=AMP -> calcula a amplitude e o maior expoente de Lyapunov'
         write (*,*) ' '
         write (*,*) 'para simular a versao sem z(t), basta ajustar os parametros: d=0 l=0 z0=0'
         write (*,*) 'na linha de comando; assim,'

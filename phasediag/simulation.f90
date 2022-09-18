@@ -2,6 +2,7 @@ module Simulation
 
     use Input
     use Output
+    use Chaos
     use precision
     
     type KTzParam
@@ -15,14 +16,71 @@ module Simulation
             type(KTzParam) :: neuPar
             real(kr8), dimension(3) :: KTzIterator
         end function KTzIterator
+
+        function KTzJacobMatrix(neuPar, x)
+            import KTzParam, kr8
+            real(kr8)      :: x(3)
+            type(KTzParam) :: neuPar
+            real(kr8), dimension(3,3) :: KTzJacobMatrix
+        end function KTzJacobMatrix
     end interface
 
-    private :: SimulaPara_xR_T, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
-    private :: unique, findISI, logisticFunc, GetKTzParams, GetKTzParamValue
-    public :: Simula
+    !abstract interface
+    !    function KTzJacobMatrix(neuPar, x)
+    !        import KTzParam, kr8
+    !        real(kr8)      :: x(3)
+    !        type(KTzParam) :: neuPar
+    !        real(kr8), dimension(3,3) :: KTzJacobMatrix
+    !    end function KTzJacobMatrix
+    !end interface
+
+    private :: SimulaPara_xR_T_ISI, SimulaPara_xR_T_AMP, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
+    private :: KTzLogJacob, KTzTanhJacob, K2TzJacob, KTzJacobMatrix, findFirstLoc, findTwoConsecLoc, CalcISIPeriod
+    private :: unique, findISI, logisticFunc, GetKTzParams, GetKTzParamValue, GetInputKTzParams
+    public :: Simula, CalcLyapunovExp
 contains
 
-    subroutine Simula(parBData, parAData, isiData, intData)
+    subroutine CalcLyapunovExp(lambda)
+        use Input
+        implicit none
+        real(kr8), intent(inout) :: lambda(:)
+        real(kr8) :: x(3), D(3,3), Tr(3,3), J(3,3)
+        integer   :: t
+        type(KTzParam) :: neuPar
+        procedure(KTzIterator),    pointer :: KTzFunc
+        procedure(KTzJacobMatrix), pointer :: KTzJac
+
+        if (par%model == "L") then
+            KTzFunc => KTzLogIter
+            KTzJac  => KTzLogJacob
+        else if (par%model == "T") then
+            KTzFunc => KTzTanhIter
+            KTzJac  => KTzTanhJacob
+        else if (par%model == "2") then
+            KTzFunc => K2TzIter
+            KTzJac  => K2TzJacob
+        else
+            write (*,*) 'ERROR! Unrecognized model'
+            stop
+        end if
+        
+        neuPar    = GetInputKTzParams()
+        lambda(:) = 0.0D0
+        x         = par%x0
+        D         = identitymat(3)
+        Tr(:,:)   = 0.0D0
+        
+        do t = 1, par%tTotal
+            x = KTzFunc(neuPar, x)
+            J = KTzJac(neuPar,x)
+            call LyapExpEckmannRuelleIter(J,D,Tr,lambda)
+        end do
+        
+        lambda = lambda / par%tTotal
+
+    end subroutine CalcLyapunovExp
+
+    subroutine Simula(parBData, parAData, isiData, intData, llisiperData)
         use Input
         use Output
         implicit none
@@ -31,24 +89,36 @@ contains
         real(kr8), allocatable, intent(inout) :: parBData(:), parAData(:),&
                                                  isiData(:), intData(:)
         real(kr8), allocatable :: isi(:), parBDataTemp(:), parADataTemp(:)
+        real(kr8), allocatable :: ll_or_isiper(:), llisiperData(:), llisiperDataTemp(:)
         real(kr8), allocatable :: isiDataTemp(:), intDataTemp(:), intensity(:)
         character(len=512) :: nomeArqSaida
+        character(len=30)  :: lastOutputName
         integer :: i, j, k, m, n, u
         logical :: isISI
         type(KTzParam) :: neuPar
-        procedure(KTzIterator), pointer :: KTzFunc
+        procedure(KTzIterator),    pointer :: KTzFunc
+        procedure(KTzJacobMatrix), pointer :: KTzJac
 
         isISI = .false.
         if (trim(par%measure) == "ISI") then
             isISI = .true.
         end if
+
+        if (isISI) then
+            lastOutputName = "ISIPeriod"
+        else
+            lastOutputName = "LyapExp"
+        end if
         
         if (par%model == "L") then
             KTzFunc => KTzLogIter
+            KTzJac  => KTzLogJacob
         else if (par%model == "T") then
             KTzFunc => KTzTanhIter
+            KTzJac  => KTzTanhJacob
         else if (par%model == "2") then
             KTzFunc => K2TzIter
+            KTzJac  => K2TzJacob
         else
             write (*,*) 'ERROR! Unrecognized model'
             stop
@@ -71,7 +141,7 @@ contains
                             trim(trim(pegaStrParamEntrada())// &
                                 "# "//trim(par%parB)//"     "//trim(par%parA)//&
                                 "     "//trim(par%measure)//&
-                                "     intensity"),nomeArqSaida)
+                                "     intensity     "//trim(lastOutputName)),nomeArqSaida)
             do i = 1, par%nparB
                 parB = par%parB1 + dparB * dble(i-1)
                 write (*,*) 'Simulando para '//trim(par%parB)//'=',parB
@@ -80,13 +150,13 @@ contains
                     !write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,'; '//trim(par%parA)//'=', parA
                     neuPar = GetKTzParams(parA,parB)
                     if (isISI) then
-                        call SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity)
+                        call SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity, ll_or_isiper)
                     else
-                        call SimulaPara_xR_T_AMP(neuPar, KTzFunc, isi, intensity)
+                        call SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, isi, intensity, ll_or_isiper)
                     end if
                     n = size(isi, 1)
                     do k = 1, n
-                        write (u, "(4D17.8)") parB, parA, isi(k), intensity(k)
+                        write (u, "(5D20.12)") parB, parA, isi(k), intensity(k), ll_or_isiper(k)
                     end do
                 end do
                 write (u,*)
@@ -100,7 +170,7 @@ contains
             allocate(parADataTemp(1:m))
             allocate(isiDataTemp(1:m))
             allocate(intDataTemp(1:m))
-
+            allocate(llisiperDataTemp(1:m))
             m = 0
             do i = 1, par%nparB
                 parB = par%parB1 + dparB * dble(i-1)
@@ -110,41 +180,65 @@ contains
                     !write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,'; '//trim(par%parA)//'=', parA
                     neuPar = GetKTzParams(parA,parB)
                     if (isISI) then
-                        call SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity)
+                        call SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity, ll_or_isiper)
                     else
-                        call SimulaPara_xR_T_AMP(neuPar, KTzFunc, isi, intensity)
+                        call SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, isi, intensity, ll_or_isiper)
                     end if
                     n = size(isi, 1)
                     do k = 1, n
                         m = m + 1
-                        parBDataTemp(m) = parB
-                        parADataTemp(m) = parA
-                        isiDataTemp(m) = isi(k)
-                        intDataTemp(m) = intensity(k)
+                        parBDataTemp(m)     = parB
+                        parADataTemp(m)     = parA
+                        isiDataTemp(m)      = isi(k)
+                        intDataTemp(m)      = intensity(k)
+                        llisiperDataTemp(m) = ll_or_isiper(k)
                     end do
                 end do
             end do
 
-            allocate(parBData(1:m), parAData(1:m), isiData(1:m), intData(1:m))
-            parBData = parBDataTemp(1:m)
-            parAData = parADataTemp(1:m)
-            isiData = isiDataTemp(1:m)
-            intData = intDataTemp(1:m)
+            allocate(parBData(1:m))
+            parBData     = parBDataTemp(1:m)
+            deallocate(parBDataTemp)
+            allocate(parAData(1:m))
+            parAData     = parADataTemp(1:m)
+            deallocate(parADataTemp)
+            allocate(isiData(1:m))
+            isiData      = isiDataTemp(1:m)
+            deallocate(isiDataTemp)
+            allocate(intData(1:m))
+            intData      = intDataTemp(1:m)
+            deallocate(intDataTemp)
+            allocate(llisiperData(1:m))
+            llisiperData = llisiperDataTemp(1:m)
+            deallocate(llisiperDataTemp)
         end if
     end subroutine Simula
     
+    function GetInputKTzParams() result (neuPar)
+        use Input
+        implicit none
+        type(KTzParam) :: neuPar
+        neuPar%K  = par%K
+        neuPar%T  = par%T
+        neuPar%d  = par%d
+        neuPar%l  = par%l
+        neuPar%xR = par%xR
+        neuPar%H  = par%H
+        neuPar%Z  = par%Z
+    end function GetInputKTzParams
+
     function GetKTzParams(pA,pB) result (neuPar)
         use Input
         implicit none
         real(kr8) :: pA, pB
         type(KTzParam) :: neuPar
-        neuPar%K = GetKTzParamValue("K ",pA,pB)
-        neuPar%T = GetKTzParamValue("T ",pA,pB)
-        neuPar%d = GetKTzParamValue("d ",pA,pB)
-        neuPar%l = GetKTzParamValue("l ",pA,pB)
+        neuPar%K  = GetKTzParamValue("K ",pA,pB)
+        neuPar%T  = GetKTzParamValue("T ",pA,pB)
+        neuPar%d  = GetKTzParamValue("d ",pA,pB)
+        neuPar%l  = GetKTzParamValue("l ",pA,pB)
         neuPar%xR = GetKTzParamValue("xR",pA,pB)
-        neuPar%H = GetKTzParamValue("H ",pA,pB)
-        neuPar%Z = GetKTzParamValue("Z ",pA,pB)
+        neuPar%H  = GetKTzParamValue("H ",pA,pB)
+        neuPar%Z  = GetKTzParamValue("Z ",pA,pB)
     end function GetKTzParams
     
     function GetKTzParamValue(p,pA,pB) result (v)
@@ -176,10 +270,10 @@ contains
         end if
     end function GetKTzParamValue
 
-    subroutine SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity)
+    subroutine SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity, isiper)
         use Input
         implicit none
-        real(kr8), allocatable, intent(inout) :: isi(:), intensity(:)
+        real(kr8), allocatable, intent(inout) :: isi(:), intensity(:), isiper(:)
         real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
         !real(kr8), intent(in) :: K, T, d, l, xR, H
         real(kr8), allocatable :: isiData(:)
@@ -188,7 +282,7 @@ contains
         integer :: i, k, iplus, crossCounter
         logical :: isFP
         type(KTzParam), intent(in) :: neuPar
-        procedure(KTzIterator), pointer, intent(in) :: KTzFunc
+        procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
 
         isFP = .false.
 
@@ -245,7 +339,7 @@ contains
                         t2 = (dble(tt - 1) + dble(tt)) / 2.0D0
                         ts = (t1 + t2) / 2.0D0 ! o instante do disparo eh a media entre tempo subida (t1) e descida (t2)
                         k = k + 1 ! k = qtd de ISI achados
-                        isiData(k) = ts - tsA
+                        isiData(k) = floor(ts - tsA)
                         tsA = ts
                     end if
                     crossCounter = crossCounter + 1
@@ -255,30 +349,34 @@ contains
         end if
         
         if (allocated(isi)) then
-            deallocate(isi, intensity)
+            deallocate(isi, intensity, isiper)
         end if
         if (isFP.or.(k == 0).or.(k == 1)) then ! nenhum ISI encontrado
-            allocate(isi(1:1), intensity(1:1))
-            isi(1) = 0.0D0
+            allocate(isi(1:1), intensity(1:1), isiper(1:1))
+            isi(1)       = 0.0D0
             intensity(1) = 1.0D0
+            isiper(1)    = 0.0D0
         else
             call unique(isiData(2:k), isi, intensity)
+            call CalcISIPeriod(isiData(2:k), isi, isiper)
         end if
     end subroutine  SimulaPara_xR_T_ISI
 
-    subroutine SimulaPara_xR_T_AMP(neuPar, KTzFunc, amp, intensity)
+    subroutine SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, amp, intensity, lambda_lyapm)
         use Input
         implicit none
-        real(kr8), allocatable, intent(inout) :: amp(:), intensity(:)
+        real(kr8), allocatable, intent(inout) :: amp(:), intensity(:), lambda_lyapm(:)
         real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
         !real(kr8), intent(in) :: K, T, d, l, xR, H
+        real(kr8) :: D_lyap(3,3), Tr_lyap(3,3), lambda_lyap(3)
         real(kr8) :: xMin, xMax
         integer :: tt, tEff
         type(KTzParam), intent(in) :: neuPar
-        procedure(KTzIterator), pointer, intent(in) :: KTzFunc
+        procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
+        procedure(KTzJacobMatrix), pointer, intent(in) :: KTzJac
 
         if (.not.allocated(amp)) then
-            allocate(amp(1:1), intensity(1:1))
+            allocate(amp(1:1), intensity(1:1), lambda_lyapm(1:1))
         end if
         
         intensity = 0.0D0
@@ -292,9 +390,17 @@ contains
         !neuPar%xR = xR
         !neuPar%H = H
 
+        ! initial conditions for the Lyapunov Exponent calculation
+        lambda_lyap(:) = 0.0D0
+        D_lyap         = identitymat(3)
+        Tr_lyap(:,:)   = 0.0D0
+
+        ! map initial condition
         x = par%x0
+
         do tt = 1,par%tTransient
             x = KTzFunc(neuPar, x)
+            call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
         end do
         xMax = - huge(xMax)
         xMin = huge(xMin)
@@ -306,8 +412,10 @@ contains
             if (x(1) > xMax) then
                 xMax = x(1)
             end if
+            call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
         end do
-        amp = xMax - xMin
+        amp          = xMax - xMin
+        lambda_lyapm = maxval(lambda_lyap / par%tTotal)
     end subroutine  SimulaPara_xR_T_AMP
 
     ! intensity eh a qtd de vezes que um valor de x se repete, em relacao ao total de valores de x
@@ -342,6 +450,77 @@ contains
         xUn = res(1:k)
         intensity = intTemp(1:k) / dble(size(x,1))
     end subroutine unique
+
+    subroutine CalcISIPeriod(isi_all, isi_un, isiper)
+        implicit none
+        real(kr8), intent(in)                 :: isi_all(:), isi_un(:)
+        real(kr8), allocatable, intent(inout) :: isiper(:)
+        real(kr8) :: I
+        integer   :: k, n, n_un, s(2) !, s1, s2
+        n_un = size(isi_un)
+        if (.not.allocated(isiper)) then
+            allocate(isiper(1:n_un))
+        end if
+        n = size(isi_all)
+        do k = 1,n_un
+            s = findTwoConsecLoc(isi_all,isi_un(k))
+            isiper(k) = s(2) - s(1)
+            if ( (s(1) == -1) .or. (s(2) == -1) ) then
+                isiper(k) = 1.0/0.0
+            end if
+            write(*,*) isiper(k)
+            !s1 = findFirstLoc(isi_all,isi_un(k))
+            !if (s1 == n) then
+            !    isiper(k) = -99999999
+            !else
+            !    s2 = findFirstLoc(isi_all((s1+1):n),isi_un(k))
+            !    if (s2 == -1) then
+            !        isiper(k) = -99999999
+            !    else
+            !        write(*,*) 's1=',s1,'   s2=',s2
+            !        isiper(k) = s2 - s1
+            !    end if
+            !end if
+        end do
+
+    end subroutine CalcISIPeriod
+    
+    function findTwoConsecLoc(X,value) result(k)
+        implicit none
+        real(kr8) :: X(:)
+        real(kr8) :: value
+        integer   :: k(2), n, m, i
+        n = size(X)
+        m = 0
+        do i = 1,n
+            if (X(i) == value) then
+                m = m + 1
+                k(m) = i
+                if (m == 2) then
+                    return
+                end if
+            end if
+        end do
+        if (m == 0) then
+            k = (/ -1, -1 /) ! not found
+        else if (m == 1) then
+            k(2) = -1
+        end if
+    end function findTwoConsecLoc
+
+    function findFirstLoc(X,value) result(k)
+        implicit none
+        real(kr8) :: X(:)
+        real(kr8) :: value
+        integer :: k, n
+        n = size(X)
+        do k = 1,n
+            if (X(k) == value) then
+                return
+            end if
+        end do
+        k = -1 ! not found
+    end function findFirstLoc
 
     ! o algoritmo abaixo esta incorporado na rotina
     ! SimulaPara_xR_T e, portanto, nao esta sendo usado
@@ -381,7 +560,7 @@ contains
             end if
             i = i + 1
         end do
-        k = k - 1 ! k = total de ISI encontraldos
+        k = k - 1 ! k = total de ISI encontrados
         allocate(isi(1:(k-1)))
         isi = isiData(2:k)
     end subroutine findISI
@@ -413,10 +592,48 @@ contains
         x(1) = dtanh((xAnt(1) - neuPar%K * xAnt(2) + xAnt(3) + neuPar%Z) / neuPar%T)
     end function K2TzIter
 
+    function KTzLogJacob(neuPar, x) result(J)
+        implicit none
+        real(kr8) :: x(3), a, J1, J(3,3)
+        type(KTzParam) :: neuPar
+        a = dabs(x(1)-neuPar%K*x(2)+x(3)) !KTzLog
+        J1 = neuPar%T / ((neuPar%T+a)*(neuPar%T+a))
+        J(1,:) = (/ J1, -neuPar%K*J1, J1 /)
+        J(2,:) = (/ 1.0D0, 0.0D0, 0.0D0 /)
+        J(3,:) = (/ -neuPar%l, 0.0D0, (1.0D0-neuPar%d) /)
+    end function KTzLogJacob
+
+    function KTzTanhJacob(neuPar, x) result(J)
+        implicit none
+        real(kr8) :: x(3), a, J(3,3)
+        type(KTzParam) :: neuPar
+        a = (dsech(   (x(1)-neuPar%K*x(2)+x(3)+neuPar%H)/neuPar%T )**2.0D0)/neuPar%T !KTzLog
+        J(1,:) = (/ a, -neuPar%K*a, a /)
+        J(2,:) = (/ 1.0D0, 0.0D0, 0.0D0 /)
+        J(3,:) = (/ -neuPar%l, 0.0D0, (1.0D0-neuPar%d) /)
+    end function KTzTanhJacob
+
+    function K2TzJacob(neuPar, x) result(J)
+        implicit none
+        real(kr8) :: x(3), a, b, J(3,3)
+        type(KTzParam) :: neuPar
+        a = (dsech(   (x(1)-neuPar%K*x(2)+x(3)+neuPar%Z)/neuPar%T  )**2.0D0)/neuPar%T !KTzLog
+        b = (dsech(  (neuPar%H + x(1))/neuPar%T  )**2.0D0)/neuPar%T
+        J(1,:) = (/ a, -neuPar%K*a, a /)
+        J(2,:) = (/ 1.0D0, 0.0D0, 0.0D0 /)
+        J(3,:) = (/ -neuPar%l, 0.0D0, (1.0D0-neuPar%d) /)
+    end function K2TzJacob
+
     function logisticFunc(x) result(y)
         implicit none
         real(kr8) :: x, y
         y = x / (1.0D0 + dabs(x))
     end function logisticFunc
+
+    function dsech(x) result(y)
+        implicit none
+        real(kr8) :: x,y
+        y = 2.0D0 / (dexp(x)+dexp(-x))
+    end function dsech
 
 end module Simulation 
