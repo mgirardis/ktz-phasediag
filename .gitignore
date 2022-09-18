@@ -3,6 +3,6 @@
 *.dat
 *.txt
 *.o
-run/out
-run/err
-run/output
+phasediag/run/out
+phasediag/run/err
+phasediag/run/output
