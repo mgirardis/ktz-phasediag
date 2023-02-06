@@ -36,7 +36,7 @@ module Simulation
 
     private :: SimulaPara_xR_T_ISI, SimulaPara_xR_T_AMP, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
     private :: KTzLogJacob, KTzTanhJacob, K2TzJacob, KTzJacobMatrix, findFirstLoc, findTwoConsecLoc, CalcISIPeriod
-    private :: unique, findISI, logisticFunc, GetKTzParams, GetKTzParamValue, GetInputKTzParams
+    private :: unique, findISI, logisticFunc, GetKTzParams, GetKTzParamValue, GetInputKTzParams, logspace, linspace
     public :: Simula, CalcLyapunovExp
 contains
 
@@ -91,6 +91,7 @@ contains
         real(kr8), allocatable :: isi(:), parBDataTemp(:), parADataTemp(:)
         real(kr8), allocatable :: ll_or_isiper(:), llisiperData(:), llisiperDataTemp(:)
         real(kr8), allocatable :: isiDataTemp(:), intDataTemp(:), intensity(:)
+        real(kr8), allocatable :: parA_values(:), parB_values(:)
         character(len=512) :: nomeArqSaida
         character(len=30)  :: lastOutputName
         integer :: i, j, k, m, n, u
@@ -124,14 +125,29 @@ contains
             stop
         end if
 
-        dparA = 0.0D0
-        dparB = 0.0D0
-        if (par%nparA > 1) then
-            dparA = (par%parA2 - par%parA1) / dble(par%nparA - 1)
-        end if
-        if (par%nparB > 1) then
-            dparB = (par%parB2 - par%parB1) / dble(par%nparB - 1)
-        end if
+        !dparA = 0.0D0
+        !dparB = 0.0D0
+        !if (par%nparA > 1) then
+        !    dparA = (par%parA2 - par%parA1) / dble(par%nparA - 1)
+        !end if
+        !if (par%nparB > 1) then
+        !    dparB = (par%parB2 - par%parB1) / dble(par%nparB - 1)
+        !end if
+
+        allocate(parA_values(1:par%nparA),parB_values(1:par%nparB))
+
+        if (par%parAScale == "LOG") then
+            parA_values(1:par%nparA) = logspace(par%parA1,par%parA2,par%nparA)
+        else
+            parA_values(1:par%nparA) = linspace(par%parA1,par%parA2,par%nparA)
+        endif
+
+        if (par%parBScale == "LOG") then
+            parB_values(1:par%nparB) = logspace(par%parB1,par%parB2,par%nparB)
+        else
+            parB_values(1:par%nparB) = linspace(par%parB1,par%parB2,par%nparB)
+        endif
+
 
 
         if (par%writeOnRun) then
@@ -143,10 +159,12 @@ contains
                                 "     "//trim(par%measure)//&
                                 "     intensity     "//trim(lastOutputName)),nomeArqSaida)
             do i = 1, par%nparB
-                parB = par%parB1 + dparB * dble(i-1)
-                write (*,*) 'Simulando para '//trim(par%parB)//'=',parB
+                parB = parB_values(i) !par%parB1 + dparB * dble(i-1)
+                write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,&
+                            '['//trim(int_to_str(i,'I0'))//'/'//trim(int_to_str(par%nparB,'I0'))//'; '// &
+                            trim(double_to_str(100.0D0*dble(i)/dble(par%nparB),'F6.1'))//'% ]'
                 do j = 1, par%nparA
-                    parA = par%parA1 + dparA * dble(j-1)
+                    parA = parA_values(j) !parA = par%parA1 + dparA * dble(j-1)
                     !write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,'; '//trim(par%parA)//'=', parA
                     neuPar = GetKTzParams(parA,parB)
                     if (isISI) then
@@ -173,10 +191,12 @@ contains
             allocate(llisiperDataTemp(1:m))
             m = 0
             do i = 1, par%nparB
-                parB = par%parB1 + dparB * dble(i-1)
-                write (*,*) 'Simulando para '//trim(par%parB)//'=',parB
+                parB = parB_values(i) ! par%parB1 + dparB * dble(i-1)
+                write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,&
+                            '['//trim(int_to_str(i,'I0'))//'/'//trim(int_to_str(par%nparB,'I0'))//'; '// &
+                            trim(double_to_str(100.0D0*dble(i)/dble(par%nparB),'F6.1'))//'% ]'
                 do j = 1, par%nparA
-                    parA = par%parA1 + dparA * dble(j-1)
+                    parA = parA_values(j) ! par%parA1 + dparA * dble(j-1)
                     !write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,'; '//trim(par%parA)//'=', parA
                     neuPar = GetKTzParams(parA,parB)
                     if (isISI) then
@@ -357,7 +377,7 @@ contains
             intensity(1) = 1.0D0
             isiper(1)    = 0.0D0
         else
-            call unique(isiData(2:k), isi, intensity)
+            call unique(isiData(2:k), par%correctISI, isi, intensity)
             call CalcISIPeriod(isiData(2:k), isi, isiper)
         end if
     end subroutine  SimulaPara_xR_T_ISI
@@ -420,7 +440,7 @@ contains
 
     ! intensity eh a qtd de vezes que um valor de x se repete, em relacao ao total de valores de x
     ! tal que sum(intensity) = 1
-    subroutine unique(x, xUn, intensity)
+    subroutine unique(x, correct_pm1_val, xUn, intensity)
         implicit none
         real(kr8), intent(in) :: x(:)
         real(kr8), allocatable, intent(inout) :: xUn(:), intensity(:)
@@ -428,6 +448,7 @@ contains
         real(kr8) :: intTemp(size(x,1))
         integer :: k                   ! The number of unique elements
         integer :: i, j
+        logical :: correct_pm1_val
 
         intTemp = 1.0D0
 
@@ -435,7 +456,7 @@ contains
         res(1) = x(1)
         outer: do i=2,size(x)
             do j=1,k
-                if (res(j) == x(i)) then
+                if (is_equal_ISI(res(j),x(i),correct_pm1_val)) then
                     ! Found a match so start looking again
                     intTemp(j) = intTemp(j) + 1.0D0
                     cycle outer
@@ -450,6 +471,20 @@ contains
         xUn = res(1:k)
         intensity = intTemp(1:k) / dble(size(x,1))
     end subroutine unique
+
+    function is_equal_ISI(isi1,isi2,correct_isi) result (r)
+        implicit none
+        real(kr8) :: isi1, isi2
+        logical   :: correct_isi, r
+        integer   :: i1,i2
+        if (correct_isi) then
+            i1 = int(floor(isi1))
+            i2 = int(floor(isi2))
+            r = (i1 == i2) .or. (i1 == (i2-1)) .or. (i1 == (i2+1))
+        else
+            r = isi1 == isi2
+        end if
+    end function
 
     subroutine CalcISIPeriod(isi_all, isi_un, isiper)
         implicit none
@@ -635,5 +670,69 @@ contains
         real(kr8) :: x,y
         y = 2.0D0 / (dexp(x)+dexp(-x))
     end function dsech
+
+    function logspace(a,b,n) result(r)
+        ! returns n log-spaced base-10 values between a and b
+        implicit none
+        integer   :: n
+        real(kind=8) :: r(n), a, b
+        if (a*b < 0.0D0) then ! a and b have different signs
+            write(*,*) 'logscale run-time WARNING: a and b have to have the same signs'
+        end if
+        if ((a == 0.0D0) .or. (b == 0.0D0)) then ! a and b have different signs
+            write(*,*) 'logscale run-time WARNING: a or b are zero, expect weird results?'
+        end if
+        r = 10.0D0**linspace(dlog10(dabs(a)),dlog10(dabs(b)),n)
+        if ((a < 0.0D0) .and. (b < 0.0D0)) then
+            r = -r
+        end if
+    end function logspace
+    
+    function linspace(a,b,n) result(r)
+        ! returns n values between a and b
+        implicit none
+        integer   :: n,i
+        real(kind=8) :: r(n), a, b, dx
+        if (n == 0) then
+            n = 1
+        end if
+        if (n == 1) then
+            r(1) = a
+            return
+        end if
+        if (n < 0) then
+            n = -n
+        end if
+        dx = (b-a)/dble(n-1)
+        r = (/(a + dx*dble(i-1), i=1,n)/)
+    end function linspace
+
+    function int_to_str(inum,fmt) result(str)
+        ! Writes single precision integer inum to string str using format fmt
+        implicit none
+        integer :: inum
+        character(len=*) :: fmt
+        character(len=80) :: formt,str
+        
+        formt='('//trim(fmt)//')'
+        write(str,formt) inum
+        str=adjustl(str)
+    
+    end function int_to_str
+
+    function double_to_str(inum,fmt) result(str)
+        ! Writes single precision integer inum to string str using format fmt
+        implicit none
+        real(kr8) :: inum
+        character(len=*) :: fmt
+        character(len=80) :: formt,str
+        
+        formt='('//trim(fmt)//')'
+        write(str,formt) inum
+        str=adjustl(str)
+    
+    end function double_to_str
+        
+
 
 end module Simulation 

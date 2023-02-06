@@ -1,32 +1,35 @@
 module Input
     use precision
     private
-    character(len=20) , parameter :: par_parA = "parA"
-    character(len=20) , parameter :: par_parA1 = "parA1"
-    character(len=20) , parameter :: par_parA2 = "parA2"
-    character(len=20) , parameter :: par_nparA = "nparA"
-    character(len=20) , parameter :: par_parB = "parB"
-    character(len=20) , parameter :: par_parB1 = "parB1"
-    character(len=20) , parameter :: par_parB2 = "parB2"
-    character(len=20) , parameter :: par_nparB = "nparB"
-    character(len=20) , parameter :: par_tTransient = "tTransient"
-    character(len=20) , parameter :: par_tTotal =  "tTotal"
-    character(len=20) , parameter :: par_K = "K"
-    character(len=20) , parameter :: par_T = "T"
-    character(len=20) , parameter :: par_d = "d"
-    character(len=20) , parameter :: par_l = "l"
-    character(len=20) , parameter :: par_xR = "xR"
-    character(len=20) , parameter :: par_H = "H"
-    character(len=20) , parameter :: par_Z = "Z"
-    character(len=20) , parameter :: par_x0 = "x0"
-    character(len=20) , parameter :: par_y0 = "y0"
-    character(len=20) , parameter :: par_z0 = "z0"
-    character(len=20) , parameter :: par_model = "model"
-    character(len=20) , parameter :: par_measure = "measure"
-    character(len=20) , parameter :: par_xThreshold = "xThreshold"
-    character(len=20) , parameter :: par_writeOnRun = "writeOnRun"
+    character(len=20) , parameter :: par_parA          = "parA"
+    character(len=20) , parameter :: par_parA1         = "parA1"
+    character(len=20) , parameter :: par_parA2         = "parA2"
+    character(len=20) , parameter :: par_nparA         = "nparA"
+    character(len=20) , parameter :: par_parAScale     = "parAScale"
+    character(len=20) , parameter :: par_parB          = "parB"
+    character(len=20) , parameter :: par_parB1         = "parB1"
+    character(len=20) , parameter :: par_parB2         = "parB2"
+    character(len=20) , parameter :: par_nparB         = "nparB"
+    character(len=20) , parameter :: par_parBScale     = "parBScale"
+    character(len=20) , parameter :: par_tTransient    = "tTransient"
+    character(len=20) , parameter :: par_tTotal        =  "tTotal"
+    character(len=20) , parameter :: par_K             = "K"
+    character(len=20) , parameter :: par_T             = "T"
+    character(len=20) , parameter :: par_d             = "d"
+    character(len=20) , parameter :: par_l             = "l"
+    character(len=20) , parameter :: par_xR            = "xR"
+    character(len=20) , parameter :: par_H             = "H"
+    character(len=20) , parameter :: par_Z             = "Z"
+    character(len=20) , parameter :: par_x0            = "x0"
+    character(len=20) , parameter :: par_y0            = "y0"
+    character(len=20) , parameter :: par_z0            = "z0"
+    character(len=20) , parameter :: par_model         = "model"
+    character(len=20) , parameter :: par_measure       = "measure"
+    character(len=20) , parameter :: par_xThreshold    = "xThreshold"
+    character(len=20) , parameter :: par_writeOnRun    = "writeOnRun"
+    character(len=20) , parameter :: par_correctISI    = "correctISI"
     character(len=20) , parameter :: par_outFileSuffix = "outFileSuffix"
-    character(len=20) , parameter :: par_outFileDir = "outFileDir"
+    character(len=20) , parameter :: par_outFileDir    = "outFileDir"
 
     type inputParam
         real(kr8) :: parB1, parB2, parA1, parA2, K, T, d, l, xR, H, Z
@@ -34,10 +37,11 @@ module Input
         integer(kind=4) :: nparA, nparB, tTotal, tTransient
         character(len=1)   :: model
         character(len=2)   :: parA, parB
-        character(len=3)   :: measure
+        character(len=3)   :: measure, parAScale, parBScale
         character(len=128) :: outFileSuffix
         character(len=100) :: outFileDir
         logical :: writeOnRun
+        logical :: correctISI
     end type inputParam
 
     type(inputParam) :: par
@@ -53,34 +57,38 @@ contains
         character(len=1024) :: str
 
         write(str,'(A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
                     A,I0,A,&
                     A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
+                    A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
+                    A,I0,A,&
+                    A,&
                     A,I0,A,&
                     A,I0,A,&
-                    A,I0,A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
-                    A,F8.5,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
+                    A,F16.8,A,&
                     A,&
                     A,&
                     A,3D17.8,A,&
-                    A,F8.5,A)')&
+                    A,F16.8,A)')&
         '# '//trim(par_parA)//' = '//par%parA//char(10),&
         '# '//trim(par_parA1)//' = ', par%parA1, char(10),&
         '# '//trim(par_parA2)//' = ', par%parA2, char(10),&
         '# '//trim(par_nparA)//' = ', par%nparA, char(10),&
+        '# '//trim(par_parAScale)//' = '//par%parAScale//char(10),&
         '# '//trim(par_parB)//' = '//par%parB//char(10),&
         '# '//trim(par_parB1)//' = ', par%parB1, char(10),&
         '# '//trim(par_parB2)//' = ', par%parB2, char(10),&
         '# '//trim(par_nparB)//' = ', par%nparB, char(10),&
+        '# '//trim(par_parBScale)//' = '//par%parBScale//char(10),&
         '# '//trim(par_tTotal)//' = ', par%tTotal, char(10),&
         '# '//trim(par_tTransient)//' = ', par%tTransient, char(10),&
         '# '//trim(par_K)//' = ', par%K, char(10),&
@@ -88,7 +96,7 @@ contains
         '# '//trim(par_d)//' = ', par%d, char(10),&
         '# '//trim(par_l)//' = ', par%l, char(10),&
         '# '//trim(par_xR)//' = ', par%xR, char(10),&
-        '# '//trim(par_H)//' = ', par%Z, char(10),&
+        '# '//trim(par_Z)//' = ', par%Z, char(10),&
         '# '//trim(par_H)//' = ', par%H, char(10),&
         '# '//trim(par_model)//' = '//par%model//char(10),&
         '# '//trim(par_measure)//' = '//par%measure//char(10),&
@@ -100,14 +108,14 @@ contains
         character(len=512) :: nome
         !write(*,*) 'c4'
         !write(*,*) trim(par%outFileSuffix)
-        write (nome,'(A,F0.3,&
-                      A,F0.3,&
-                      A,F0.3,&
-                      A,F0.3,&
-                      A,F0.3,&
-                      A,F0.3,&
-                      A,F0.3,&
-                      A,F0.3,&
+        write (nome,'(A,F6.4,&
+                      A,F6.4,&
+                      A,F6.4,&
+                      A,F6.4,&
+                      A,F6.4,&
+                      A,F6.4,&
+                      A,F6.4,&
+                      A,F6.4,&
                       A)') &
             trim(par%outFileDir)//'/'//trim(par%measure)//'_'//trim(par%parA)//'vs'//trim(par%parB)//&
             '_K',par%K,&
@@ -123,30 +131,33 @@ contains
     end function pegaNomeArqSaida
 
     subroutine inicializaParametros()
-        par%parA = "T"
-        par%parA1 = 1.0D-3
-        par%parA2 = 1.0D0
-        par%nparA = 1000
-        par%parB = "xR"
-        par%parB1 = 0.0D0
-        par%parB2 = -1.0D0
-        par%nparB = 100
-        par%tTotal = 10000
-        par%tTransient = 2000
-        par%K = 0.6D0
-        par%T = 0.3D0
-        par%d = 0.001D0
-        par%l = 0.001D0
-        par%xR = -0.5D0
-        par%Z = 0.0D0
-        par%H = 0.0D0
-        par%model = "L"
-        par%measure = "ISI"
-        par%x0 = (/ 1.0, 1.0, 1.0 /)
-        par%xThreshold = 0.0D0
-        par%writeOnRun = .false.
+        par%parA          = "T"
+        par%parAScale     = "LIN" ! LIN or LOG
+        par%parA1         = 1.0D-3
+        par%parA2         = 1.0D0
+        par%nparA         = 1000
+        par%parB          = "xR"
+        par%parBScale     = "LIN" ! LIN or LOG
+        par%parB1         = 0.0D0
+        par%parB2         = -1.0D0
+        par%nparB         = 100
+        par%tTotal        = 10000
+        par%tTransient    = 2000
+        par%K             = 0.6D0
+        par%T             = 0.3D0
+        par%d             = 0.001D0
+        par%l             = 0.001D0
+        par%xR            = -0.5D0
+        par%Z             = 0.0D0
+        par%H             = 0.0D0
+        par%model         = "L"
+        par%measure       = "ISI"
+        par%x0            = (/ 1.0, 1.0, 1.0 /)
+        par%xThreshold    = 0.0D0
+        par%writeOnRun    = .false.
+        par%correctISI    = .true.
         par%outFileSuffix = ''
-        par%outFileDir = '.'
+        par%outFileDir    = '.'
     end subroutine inicializaParametros
 
     ! adjusts the values of the parameters defined in the file
@@ -232,10 +243,14 @@ contains
                 par%nparA = strToInteger(parVal(2))
             else if (parVal(1) == par_nparB) then
                 par%nparB = strToInteger(parVal(2))
-            else if (parVal(1) == par_model) then
+            else if (parVal(1) == trim(par_model)) then
                 par%model = trim(parVal(2))
-            else if (parVal(1) == par_measure) then
+            else if (parVal(1) == trim(par_measure)) then
                 par%measure = trim(parVal(2))
+            else if (parVal(1) == trim(par_parAScale)) then
+                par%parAScale = trim(parVal(2))
+            else if (parVal(1) == trim(par_parBScale)) then
+                par%parBScale = trim(parVal(2))
             else if (parVal(1) == par_outFileSuffix) then
                 par%outFileSuffix = trim(parVal(2))
             else if (parVal(1) == par_outFileDir) then
@@ -245,6 +260,12 @@ contains
                     par%writeOnRun = .true.
                 else
                     par%writeOnRun = .false.
+                end if
+            else if (parVal(1) == par_correctISI) then
+                if (strToInteger(parVal(2)) == 1) then
+                    par%correctISI = .true.
+                else
+                    par%correctISI = .false.
                 end if
             else
                 write (*,*) "ERROR: unrecognized parameter: "//trim(parVal(1))
@@ -258,12 +279,18 @@ contains
     end subroutine ajustaParametros
 
     subroutine PrintHelp()
-        integer :: temp
+        integer :: writeonrun_val, correctisi_val
         if (par%writeOnRun) then
-            temp = 1
+            writeonrun_val = 1
         else
-            temp = 0
+            writeonrun_val = 0
         end if
+        if (par%correctISI) then
+            correctisi_val = 1
+        else
+            correctisi_val = 0
+        end if
+        
         write (*,*) 'itera KTzLog, ou KTzTanh, ou K2Tz por tTotal e ignora tTransient passos de tempo'
         write (*,*) 'calcula ISI(parA,parB), ou Amplitude(parA,parB)'
         write (*,*) 'onde parA e parB podem ser quaisquer dos parametros do modelo (K,T,d,l,xR,H,Z)'
@@ -298,9 +325,11 @@ contains
         write (*,*) ' '
         write (*,*) 'isi.exe &
                         parA=NOME_PAR &
+                        parAScale=LOG_or_LIN &
                         parA1=VALOR_NUMERICO parA2=VALOR_NUMERICO &
                         nparA=VALOR_NUMERICO &
                         parB=NOME_PAR &
+                        parBScale=LOG_or_LIN &
                         parB1=VALOR_NUMERICO parB2=VALOR_NUMERICO &
                         nparB=VALOR_NUMERICO & 
                         x0=VALOR_NUMERICO y0=VALOR_NUMERICO z0=VALOR_NUMERICO &
@@ -310,6 +339,7 @@ contains
                         xThreshold=VALOR_NUMERICO &
                         model=L_ou_T_ou_2 measure=ISI_ou_AMP &
                         writeOnRun=0_ou_1 &
+                        correctISI=0_ou_1 &
                         outFileSuffix=OUTPUT_FILE_NAME_SUFFIX &
                         outFileDir=OUTPUT_FILE_DIR'
         write (*,*) ' '
@@ -320,6 +350,9 @@ contains
         write (*,'(A11,A,A10,A)')    trim(par_parA)//' ',      '-> [padrao: ',trim(par%parA),'] nome do parametro &
                                                          pro eixo X do diag de fases &
                                                          (possiveis valores: K,T,d,l,xR,H,Z)'
+        write (*,'(A11,A,A10,A)')    trim(par_parAScale)//' ',   '-> [padrao: ',trim(par%parAScale),'] Possiveis valores &
+                                                                variacao linear: LIN ; &
+                                                                escala logaritmica: LOG'
         write (*,'(A11,A,F10.5,A)') trim(par_parA1)//' ',     '-> [padrao: ',par%parA1,'] menor valor de parA no &
                                                          intervalo [parA1;parA2]'
         write (*,'(A11,A,F10.5,A)') trim(par_parA2)//' ',     '-> [padrao: ',par%parA2,'] maior valor de parA no &
@@ -329,6 +362,9 @@ contains
         write (*,'(A11,A,A10,A)')    trim(par_parB)//' ',      '-> [padrao: ',trim(par%parB),'] nome do parametro &
                                                          pro eixo Y do diag de fases &
                                                          (possiveis valores: K,T,d,l,xR,H,Z)'
+        write (*,'(A11,A,A10,A)')    trim(par_parBScale)//' ',   '-> [padrao: ',trim(par%parBScale),'] Possiveis valores &
+                                                                    variacao linear: LIN ; &
+                                                                    escala logaritmica: LOG'
         write (*,'(A11,A,F10.5,A)') trim(par_parB1)//' ',     '-> [padrao: ',par%parB1,'] menor valor de parB no &
                                                          intervalo [parB1;parB2]'
         write (*,'(A11,A,F10.5,A)') trim(par_parB2)//' ',     '-> [padrao: ',par%parB2,'] maior valor de parB no &
@@ -355,9 +391,11 @@ contains
         write (*,'(A11,A,A10,A)')    trim(par_measure)//' ',   '-> [padrao: ',trim(par%measure),'] Possiveis valores &
                                                              medir o ISI: ISI ; &
                                                              medir a amplitude: AMP'
-        write (*,'(A11,A,I10.0,A)')   trim(par_writeOnRun)//' ','-> [padrao: ',temp,'] &
+        write (*,'(A11,A,I10.0,A)')   trim(par_writeOnRun)//' ','-> [padrao: ',writeonrun_val,'] &
                                    Possiveis valores: 0 ou 1. Se for 1, escreve os arquivos de dados durante &
                                    a simulacao (previne erro por falta de memoria)'
+        write (*,'(A11,A,I10.0,A)')   trim(par_correctISI)//' ','-> [padrao: ',correctisi_val,'] &
+                                   Possiveis valores: 0 ou 1. Se for 1, ISI dentro de +-1 sao considerados iguais: ISI+1=ISI-1=ISI'
         write (*,'(A11,A,A10,A)')    trim(par_outFileSuffix)//' ',   '-> [padrao: ',trim(par%outFileSuffix),'] sufixo pro nome &
                                                                         do arq de saida'
         write (*,'(A11,A,A10,A)')    trim(par_outFileDir)//' ',   '-> [padrao: ',trim(par%outFileDir),'] diretorio pro  &

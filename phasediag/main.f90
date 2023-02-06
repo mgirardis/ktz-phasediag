@@ -3,6 +3,7 @@ program main
     use Input
     use Output
     use Simulation
+    use IFPORT
     !use Chaos
 
     implicit none
@@ -12,10 +13,12 @@ program main
     real(kr8), allocatable :: isiData(:), parAData(:), parBData(:), intData(:), llisiperData(:)
     character(len=1024) :: headerSaida
     character(len=30)   :: lastOutputName
-    real :: sim_time
+    real(8) :: sim_time
     real, dimension(2) :: timearray
     !real(kr8) :: lambda(3)
     !real(kr8), dimension(3,3) :: A,L,U,B
+    
+    sim_time = dclock()
 
     ! (row,col)
     !A(1,1) = 10.0
@@ -94,7 +97,6 @@ program main
     !call exit()
 
     write (*,*) 'Simulando ...'
-    call dtime(timearray,sim_time)
     call Simula(parBData, parAData, isiData, intData, llisiperData)
 
     if (.not.par%writeOnRun) then
@@ -117,17 +119,20 @@ program main
                             pegaNomeArqSaida())
     end if
 
-    call ellapsed_time()
+    call ellapsed_time(sim_time)
 
 end program main
 
-subroutine ellapsed_time()
-    real :: sim_time
+subroutine ellapsed_time(start_time)
+    use IFPORT
+    real(8) :: sim_time,start_time
     real, dimension(2) :: timearray
     integer :: days,hours,minutes,seconds,mseconds
     
     ! using keyword arguments
-    call dtime(timearray,sim_time)
+    !call dtime(timearray,sim_time)
+    sim_time = dclock() - start_time
+    !print *, 'total time = ', sim_time
 
     mseconds = int((sim_time - floor(sim_time))*1000.0)
     days     = int(floor(floor(sim_time)/(3600.0*24.0)))
@@ -135,11 +140,7 @@ subroutine ellapsed_time()
     minutes  = int(floor((floor(sim_time)-real(days*3600*24)-real(hours*3600))/60.0))
     seconds  = int(floor(sim_time)) - days*(3600*24) - hours*3600 - minutes*60
 
-    write (*,*) ' '
-    write (*,*) ' '
     write (*,*) ' - '
-    write (*,*) ' '
-    write (*,*) ' '
-    write (*,'(A,I5,A,I2,A,I2,A,I2,A,I3,A)') 'ellapsed simulation time = ',days,' days   ',hours,' hours   ',minutes,' min   ',seconds,' s   ', mseconds,' ms'
+    write (*,*) 'ellapsed simulation time = ',days,' days   ',hours,' hours   ',minutes,' min   ',seconds,' s   ', mseconds,' ms'
 
 end subroutine ellapsed_time
