@@ -42,6 +42,7 @@ contains
 
     subroutine CalcLyapunovExp(lambda)
         use Input
+        use Chaos
         implicit none
         real(kr8), intent(inout) :: lambda(:)
         real(kr8) :: x(3), D(3,3), Tr(3,3), J(3,3)
@@ -384,6 +385,7 @@ contains
 
     subroutine SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, amp, intensity, lambda_lyapm)
         use Input
+        use Chaos
         implicit none
         real(kr8), allocatable, intent(inout) :: amp(:), intensity(:), lambda_lyapm(:)
         real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
