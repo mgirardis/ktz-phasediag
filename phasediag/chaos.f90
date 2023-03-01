@@ -49,7 +49,7 @@ contains
 
     subroutine LU_decomp(A, L, U)!, n)
         implicit none
-        ! copied from https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
+        ! adapted from https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
         !integer, intent(in) :: n
         !real(kr8), dimension(n*n), intent(in) :: A
         !real(kr8), dimension(n*n), intent(inout) :: L

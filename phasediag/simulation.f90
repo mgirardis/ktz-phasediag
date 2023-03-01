@@ -299,14 +299,13 @@ contains
         !real(kr8), intent(in) :: K, T, d, l, xR, H
         real(kr8), allocatable :: isiData(:)
         real(kr8) :: t1, t2, ts, tsA, xAnt
-        integer :: tt, tEff
+        integer :: tt, tEff, t
         integer :: i, k, iplus, crossCounter
         logical :: isFP
         type(KTzParam), intent(in) :: neuPar
         procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
 
         isFP = .false.
-
         tEff = par%tTotal - par%tTransient
         
         if (.not.allocated(isiData)) then
@@ -322,23 +321,35 @@ contains
 
         x = par%x0
         do tt = 1,par%tTransient
-            xAnt = x(1)
+            !xAnt = x(1)
+            !write(*,*) x
             x = KTzFunc(neuPar, x)
-            if (dabs(x(1) - xAnt) <= 1.0e-8) then
-                isFP = .true.
-                exit
-            end if
+            ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
+            ! fooling this simple method to detect FP... so we are not checking for FP during transient time
+            !if (dabs(x(1) - xAnt) <= 1.0e-8) then
+            !    isFP = .true.
+            !    exit
+            !end if
         end do
-        if (.not.isFP) then
-            do while (x(1) > par%xThreshold) ! garantindo que o loop principal começara com x(i)<0
-                xAnt = x(1);
-                x = KTzFunc(neuPar, x)
-                if (dabs(x(1) - xAnt) <= 1.0e-8) then
-                    isFP = .true.
-                    exit
-                end if
-            end do
-        end if
+        !if (.not.isFP) then
+        !    t  = 0 ! time counter
+        !    tt = tEff / 2 ! tolerance time to start looking for FP
+        ! garantindo que o loop principal começara com x(i)<0
+        do while (x(1) > par%xThreshold)
+            !xAnt = x(1)
+            !write(*,*) x
+            x = KTzFunc(neuPar, x)
+            !if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (t > tt)) then
+            !    ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
+            !    ! fooling this simple method to detect FP...
+            !    ! thus, we wait a period tt to start checking if we are at a fixed point
+            !    isFP = .true.
+            !    exit
+            !end if
+        end do
+        !end if
+
+        ! calculating ISI
         t1 = 0
         t2 = 0
         ts = 0
@@ -346,28 +357,30 @@ contains
         crossCounter = 0
         xAnt = x(1)
         k = 0
-        if (.not.isFP) then
-            do tt = 2,tEff ! loop principal
-                x = KTzFunc(neuPar, x)
-                if (dabs(x(1) - xAnt) <= 1.0e-8) then
-                    isFP = .true.
-                    exit
+        !if (.not.isFP) then
+        do tt = 2,tEff ! loop principal
+            xAnt = x(1)
+            x = KTzFunc(neuPar, x)
+            !if (dabs(x(1) - xAnt) <= 1.0e-8) then
+            if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (t > (tEff/2))) then
+                isFP = .true.
+                exit
+            end if
+            if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! cruzou o eixo x = xThreshold
+                if (modulo(crossCounter,2) == 0) then                           ! como começou abaixo de x = 0, crossCounter par significa subindo
+                    t1 = (dble(tt - 1) + dble(tt)) / 2.0D0
+                else                                                            ! crossCounter impar significa descendo
+                    t2 = (dble(tt - 1) + dble(tt)) / 2.0D0
+                    ts = (t1 + t2) / 2.0D0                                      ! o instante do disparo eh a media entre tempo subida (t1) e descida (t2)
+                    k = k + 1                                                   ! k = qtd de ISI achados
+                    isiData(k) = floor(ts - tsA)
+                    tsA = ts
                 end if
-                if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! cruzou o eixo x = xThreshold
-                    if (modulo(crossCounter,2) == 0) then ! como começou abaixo de x = 0, crossCounter par significa subindo
-                        t1 = (dble(tt - 1) + dble(tt)) / 2.0D0
-                    else ! crossCounter impar significa descendo
-                        t2 = (dble(tt - 1) + dble(tt)) / 2.0D0
-                        ts = (t1 + t2) / 2.0D0 ! o instante do disparo eh a media entre tempo subida (t1) e descida (t2)
-                        k = k + 1 ! k = qtd de ISI achados
-                        isiData(k) = floor(ts - tsA)
-                        tsA = ts
-                    end if
-                    crossCounter = crossCounter + 1
-                end if
-                xAnt = x(1)
-            end do
-        end if
+                crossCounter = crossCounter + 1
+            end if
+            xAnt = x(1)
+        end do
+        !end if
         
         if (allocated(isi)) then
             deallocate(isi, intensity, isiper)
@@ -391,8 +404,9 @@ contains
         real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
         !real(kr8), intent(in) :: K, T, d, l, xR, H
         real(kr8) :: D_lyap(3,3), Tr_lyap(3,3), lambda_lyap(3)
-        real(kr8) :: xMin, xMax
-        integer :: tt, tEff
+        real(kr8) :: xMin, xMax, xAnt
+        integer :: tt, tEff, tTotal
+        logical :: isFP
         type(KTzParam), intent(in) :: neuPar
         procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
         procedure(KTzJacobMatrix), pointer, intent(in) :: KTzJac
@@ -402,8 +416,9 @@ contains
         end if
         
         intensity = 0.0D0
-        
-        tEff = par%tTotal - par%tTransient
+        tTotal    = par%tTotal
+        tEff      = par%tTotal - par%tTransient
+        isFP      = .false.
         
         !neuPar%K = K
         !neuPar%T = T
@@ -424,9 +439,10 @@ contains
             x = KTzFunc(neuPar, x)
             call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
         end do
-        xMax = - huge(xMax)
+        xMax = -huge(xMax)
         xMin = huge(xMin)
         do tt = 1,tEff ! loop principal
+            xAnt = x(1)
             x = KTzFunc(neuPar, x)
             if (x(1) < xMin) then
                 xMin = x(1)
@@ -434,10 +450,22 @@ contains
             if (x(1) > xMax) then
                 xMax = x(1)
             end if
+            if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (tt > (tEff/2))) then
+                ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
+                ! fooling this simple method to detect FP...
+                ! thus, we wait a period tt to start checking if we are at a fixed point
+                tTotal = tt + par%tTransient - 1
+                isFP   = .true.
+                exit
+            end if
             call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
         end do
-        amp          = xMax - xMin
-        lambda_lyapm = maxval(lambda_lyap / par%tTotal)
+        if (isFP) then
+            amp          = xMax - xMin
+        else
+            amp          = 0.0D0
+        end if
+        lambda_lyapm = maxval(lambda_lyap / tTotal)
     end subroutine  SimulaPara_xR_T_AMP
 
     ! intensity eh a qtd de vezes que um valor de x se repete, em relacao ao total de valores de x
