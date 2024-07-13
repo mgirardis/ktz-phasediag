@@ -661,7 +661,7 @@ contains
         implicit none
         real(kr8) :: x(3), a, J1, J(3,3)
         type(KTzParam) :: neuPar
-        a = dabs(x(1)-neuPar%K*x(2)+x(3)) !KTzLog
+        a = dabs(x(1)-neuPar%K*x(2)+x(3)+neuPar%H) !KTzLog
         J1 = neuPar%T / ((neuPar%T+a)*(neuPar%T+a))
         J(1,:) = (/ J1, -neuPar%K*J1, J1 /)
         J(2,:) = (/ 1.0D0, 0.0D0, 0.0D0 /)

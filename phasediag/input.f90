@@ -150,8 +150,8 @@ contains
         par%xR            = -0.5D0
         par%Z             = 0.0D0
         par%H             = 0.0D0
-        par%model         = "L"
-        par%measure       = "ISI"
+        par%model         = "L" ! L or T or 2
+        par%measure       = "ISI" ! ISI or AMP
         par%x0            = (/ 1.0, 1.0, 1.0 /)
         par%xThreshold    = 0.0D0
         par%writeOnRun    = .false.
@@ -291,22 +291,52 @@ contains
             correctisi_val = 0
         end if
         
-        write (*,*) 'itera KTzLog, ou KTzTanh, ou K2Tz por tTotal e ignora tTransient passos de tempo'
-        write (*,*) 'calcula ISI(parA,parB), ou Amplitude(parA,parB)'
+        write (*,*) 'itera KTzLog, ou KTzTanh, ou K2Tz por tTotal passos de tempo, ignorando os tTransient primeiros passos'
+        write (*,*) 'calcula ISI(parA,parB) e periodo[ISI](parA,parB), ou Amplitude(parA,parB) e Lyapunov(parA,parB)'
         write (*,*) 'onde parA e parB podem ser quaisquer dos parametros do modelo (K,T,d,l,xR,H,Z)'
-        write (*,*) ' '
-        write (*,*) 'quando measure=ISI -> calcula o ISI e a periodicidade de cada ISI'
-        write (*,*) 'quando measure=AMP -> calcula a amplitude e o maior expoente de Lyapunov'
-        write (*,*) ' '
-        write (*,*) 'para simular a versao sem z(t), basta ajustar os parametros: d=0 l=0 z0=0'
-        write (*,*) 'na linha de comando; assim,'
         write (*,*) ' '
         write (*,*) 'o eixo x serah o parametro parA com nparA valores no intervalo [parA1,parA2]'
         write (*,*) 'o eixo y serah o parametro parB com nparB valores no intervalo [parB1,parB2]'
+        write (*,*) 'em ambos os eixos, a escala pode ser'
+        write (*,*) '   logaritmica [parAScale=LOG ou parBScale=LOG]'
+        write (*,*) '   linear [parAScale=LIN ou parBScale=LIN]'
+        write (*,*) ' '
+        write (*,*) 'para simular a versao sem z(t), basta ajustar os parametros: d=0 l=0 z0=0'
+        write (*,*) 'na linha de comando;'
+        write (*,*) ' '
         write (*,*) ' '
         write (*,*) '-'
+        write (*,*) 'MEDIDAS: (parametro measure)'
+        write (*,*) ' measure=ISI -> calcula o ISI e a periodicidade de cada ISI'
+        write (*,*) '                ATENCAO: parametro correctISI torna todos os ISI inteiros,'
+        write (*,*) '                         ou seja, faz com que 11.5 seja igual a 11 ou 12'
+        write (*,*) '                         entao muda o resultado da periodicidade'
+        write (*,*) ' measure=AMP -> calcula a amplitude e o maior expoente de Lyapunov'
         write (*,*) ' '
-        write (*,*) 'exemplo:'
+        write (*,*) ' '
+        write (*,*) '-'
+        write (*,*) 'EQUACOES: (parametro model)'
+        write (*,*) ' model=T'
+        write (*,*) '      x(t+1) = Tanh[ (x(t) - K*y(t) + z(t) + H)/T ]'
+        write (*,*) '      y(t+1) = x(t)'
+        write (*,*) '      z(t+1) = [1-d]*z(t) - l*[x(t) - xR]'
+        write (*,*) '   ref -> Kinouchi Tragtenberg (1996) Intl J Bif Chaos 6: 2343-2360'
+        write (*,*) '   ref -> Kuva et al. (2001) Neurocomputing 38-40: 255-261'
+        write (*,*) ' model=L'
+        write (*,*) '      x(t+1) = f[ (x(t) - K*y(t) + z(t) + H)/T ]'
+        write (*,*) '               f(u) = u/(1+|u|)'
+        write (*,*) '      y(t+1) = x(t)'
+        write (*,*) '      z(t+1) = [1-d]*z(t) - l*[x(t) - xR]'
+        write (*,*) '   ref -> DOI:10.1371/journal.pone.0174621'
+        write (*,*) ' model=2'
+        write (*,*) '      x(t+1) = Tanh[ (x(t) - K*y(t) + z(t) + Z)/T ]'
+        write (*,*) '      y(t+1) = Tanh[ (x(t) + H)/T ]'
+        write (*,*) '      z(t+1) = [1-d]*z(t) - l*[x(t) - xR]'
+        write (*,*) '   ref -> DOI:10.1063/5.0202743'
+        write (*,*) ' '
+        write (*,*) ' '
+        write (*,*) '-'
+        write (*,*) 'EXEMPLO:'
         write (*,*) ' isi.exe parA=T nparA=100 parA1=0.001 parA2=0.6'
         write (*,*) '        parB=xR nparB=100 parB1=0 parB2=-0.7'
         write (*,*) '        K=0.6 d=0.001 l=0.001 model=L measure=ISI tTotal=10000 tTransient=2000'
@@ -319,9 +349,9 @@ contains
         write (*,*) '   os dados vao ser escritos a medida que os calculos sao feitos pra economizar'
         write (*,*) '   memoria'
         write (*,*) ' '
-        write (*,*) '-'
         write (*,*) ' '
-        write (*,*) 'uso:'
+        write (*,*) '-'
+        write (*,*) 'COMO USAR:'
         write (*,*) ' '
         write (*,*) 'isi.exe &
                         parA=NOME_PAR &
@@ -343,9 +373,9 @@ contains
                         outFileSuffix=OUTPUT_FILE_NAME_SUFFIX &
                         outFileDir=OUTPUT_FILE_DIR'
         write (*,*) ' '
-        write (*,*) '-'
         write (*,*) ' '
-        write (*,*) 'onde:'
+        write (*,*) '-'
+        write (*,*) 'ONDE:'
         write (*,*) ' '
         write (*,'(A11,A,A10,A)')    trim(par_parA)//' ',      '-> [padrao: ',trim(par%parA),'] nome do parametro &
                                                          pro eixo X do diag de fases &
@@ -377,10 +407,12 @@ contains
         write (*,'(A11,A,F10.5,A)') trim(par_xThreshold)//' ','-> [padrao: ',par%xThreshold,'] limiar de x(t) para &
                                                          considerar um disparo'
         write (*,'(A11,A,F10.5,A)') trim(par_K)//' ',         '-> [padrao: ',par%K,'] K do neuronio'
+        write (*,'(A11,A,F10.5,A)') trim(par_T)//' ',         '-> [padrao: ',par%T,'] T do neuronio'
         write (*,'(A11,A,F10.5,A)') trim(par_d)//' ',         '-> [padrao: ',par%d,'] delta do neuronio'
         write (*,'(A11,A,F10.5,A)') trim(par_l)//' ',         '-> [padrao: ',par%l,'] lambda do neuronio'
-        write (*,'(A11,A,F10.5,A)') trim(par_Z)//' ',         '-> [padrao: ',par%Z,'] Z do neuronio (soh pra 2-Tanh)'
-        write (*,'(A11,A,F10.5,A)') trim(par_H)//' ',         '-> [padrao: ',par%H,'] H do neuronio'
+        write (*,'(A11,A,F10.5,A)') trim(par_xR)//' ',         '-> [padrao: ',par%xR,'] xR do neuronio'
+        write (*,'(A11,A,F10.5,A)') trim(par_Z)//' ',         '-> [padrao: ',par%Z,'] Z do neuronio (campo externo de x(t) para 2-Tanh)'
+        write (*,'(A11,A,F10.5,A)') trim(par_H)//' ',         '-> [padrao: ',par%H,'] H do neuronio (campo externo de y(t) para 2-Tanh)'
         write (*,'(A11,A,I10.0,A)')   trim(par_tTotal)//' ',    '-> [padrao: ',par%tTotal,'] total de passos de tempo'
         write (*,'(A11,A,I10.0,A)')   trim(par_tTransient)//' ','-> [padrao: ',par%tTransient,'] qtd de passos de tempo &
                                                          transiente a ser ignorada'

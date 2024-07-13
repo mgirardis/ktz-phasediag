@@ -2,8 +2,11 @@
 *.exe
 *.dat
 *.txt
+*.lnk
 *.o
+*.obj
 phasediag/run/out
 phasediag/run/err
 phasediag/run/output
 phasediag/run/completed_runs
+phasediag/run/*.sh
