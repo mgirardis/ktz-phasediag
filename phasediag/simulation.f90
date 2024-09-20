@@ -298,9 +298,8 @@ contains
         real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
         !real(kr8), intent(in) :: K, T, d, l, xR, H
         real(kr8), allocatable :: isiData(:)
-        real(kr8) :: t1, t2, ts, tsA, xAnt
-        integer :: tt, tEff, t
-        integer :: i, k, iplus, crossCounter
+        real(kr8) :: t0, xAnt ! , t2, ts, tsA
+        integer :: t, tEff, is_fp_counter, k
         logical :: isFP
         type(KTzParam), intent(in) :: neuPar
         procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
@@ -320,7 +319,7 @@ contains
         !neuPar%H = H
 
         x = par%x0
-        do tt = 1,par%tTransient
+        do t = 1,par%tTransient
             !xAnt = x(1)
             !write(*,*) x
             x = KTzFunc(neuPar, x)
@@ -335,50 +334,46 @@ contains
         !    t  = 0 ! time counter
         !    tt = tEff / 2 ! tolerance time to start looking for FP
         ! garantindo que o loop principal começara com x(i)<0
-        do while (x(1) > par%xThreshold)
-            !xAnt = x(1)
-            !write(*,*) x
-            x = KTzFunc(neuPar, x)
-            !if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (t > tt)) then
-            !    ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
-            !    ! fooling this simple method to detect FP...
-            !    ! thus, we wait a period tt to start checking if we are at a fixed point
-            !    isFP = .true.
-            !    exit
-            !end if
-        end do
+        !do while (x(1) > par%xThreshold)
+        !    !xAnt = x(1)
+        !    !write(*,*) x
+        !    x = KTzFunc(neuPar, x)
+        !    !if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (t > tt)) then
+        !    !    ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
+        !    !    ! fooling this simple method to detect FP...
+        !    !    ! thus, we wait a period tt to start checking if we are at a fixed point
+        !    !    isFP = .true.
+        !    !    exit
+        !    !end if
+        !end do
         !end if
 
         ! calculating ISI
-        t1 = 0
-        t2 = 0
-        ts = 0
-        tsA = 0
-        crossCounter = 0
-        xAnt = x(1)
-        k = 0
-        !if (.not.isFP) then
-        do tt = 2,tEff ! loop principal
+        is_fp_counter = 0
+        k             = 0 ! number of ISI that were found
+        t0            = 0
+        do t = 1,tEff ! loop principal
             xAnt = x(1)
-            x = KTzFunc(neuPar, x)
-            !if (dabs(x(1) - xAnt) <= 1.0e-8) then
-            if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (t > (tEff/2))) then
+            x    = KTzFunc(neuPar, x)
+
+            ! checking if this is a FP
+            if ((dabs(x(1) - xAnt) < 1.0e-8)) then !.and. (t > (tEff/2))) then
+                is_fp_counter = is_fp_counter + 1
+            else
+                is_fp_counter = 0
+            if (is_fp_counter > (tEff/2)) ! this is a fixed point if the attractor stayed equal for too long
                 isFP = .true.
                 exit
             end if
-            if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! cruzou o eixo x = xThreshold
-                if (modulo(crossCounter,2) == 0) then                           ! como começou abaixo de x = 0, crossCounter par significa subindo
-                    t1 = (dble(tt - 1) + dble(tt)) / 2.0D0
-                else                                                            ! crossCounter impar significa descendo
-                    t2 = (dble(tt - 1) + dble(tt)) / 2.0D0
-                    ts = (t1 + t2) / 2.0D0                                      ! o instante do disparo eh a media entre tempo subida (t1) e descida (t2)
-                    k = k + 1                                                   ! k = qtd de ISI achados
-                    isiData(k) = floor(ts - tsA)
-                    tsA = ts
+
+            ! this is not a FP point...
+            if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! crossed x==xThreshold
+                if ((dabs(xAnt - par%xThreshold)<1.0e-10).and.(xAnt < x(1))) then ! the curve is climbing, and the previous x cannot be the threshold
+                    k          = k + 1
+                    isiData(k) = t - t0 + 1
+                    t0         = t
                 end if
-                crossCounter = crossCounter + 1
             end if
-            xAnt = x(1)
         end do
         !end if
         
@@ -405,7 +400,7 @@ contains
         !real(kr8), intent(in) :: K, T, d, l, xR, H
         real(kr8) :: D_lyap(3,3), Tr_lyap(3,3), lambda_lyap(3)
         real(kr8) :: xMin, xMax, xAnt
-        integer :: tt, tEff, tTotal
+        integer :: tt, tEff, tTotal, is_fp_counter
         logical :: isFP
         type(KTzParam), intent(in) :: neuPar
         procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
@@ -434,36 +429,48 @@ contains
 
         ! map initial condition
         x = par%x0
-
+        is_fp_counter = 0
         do tt = 1,par%tTransient
-            x = KTzFunc(neuPar, x)
-            call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
-        end do
-        xMax = -huge(xMax)
-        xMin = huge(xMin)
-        do tt = 1,tEff ! loop principal
             xAnt = x(1)
-            x = KTzFunc(neuPar, x)
-            if (x(1) < xMin) then
-                xMin = x(1)
-            end if
-            if (x(1) > xMax) then
-                xMax = x(1)
-            end if
-            if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (tt > (tEff/2))) then
-                ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
-                ! fooling this simple method to detect FP...
-                ! thus, we wait a period tt to start checking if we are at a fixed point
-                tTotal = tt + par%tTransient - 1
-                isFP   = .true.
+            x    = KTzFunc(neuPar, x)
+            if ((dabs(x(1) - xAnt) < 1.0e-8)) then !.and. (t > (tEff/2))) then
+                is_fp_counter = is_fp_counter + 1
+            else
+                is_fp_counter = 0
+            if (is_fp_counter > (par%tTransient/2)) ! this is a fixed point if the attractor stayed equal for too long
+                isFP = .true.
                 exit
             end if
             call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
         end do
+        xMax = -huge(xMax)
+        xMin = huge(xMin)
+        if (.not.isFP) then
+            is_fp_counter = 0
+            do tt = 1,tEff ! loop principal
+                xAnt = x(1)
+                x = KTzFunc(neuPar, x)
+                if (x(1) < xMin) then
+                    xMin = x(1)
+                end if
+                if (x(1) > xMax) then
+                    xMax = x(1)
+                end if
+                if ((dabs(x(1) - xAnt) < 1.0e-8)) then !.and. (t > (tEff/2))) then
+                    is_fp_counter = is_fp_counter + 1
+                else
+                    is_fp_counter = 0
+                if (is_fp_counter > (tEff/2)) ! this is a fixed point if the attractor stayed equal for too long
+                    isFP = .true.
+                    exit
+                end if
+                call LyapExpEckmannRuelleIter(KTzJac(neuPar,x),D_lyap,Tr_lyap,lambda_lyap)
+            end do
+        end if
         if (isFP) then
-            amp          = xMax - xMin
-        else
             amp          = 0.0D0
+        else
+            amp          = xMax - xMin
         end if
         lambda_lyapm = maxval(lambda_lyap / tTotal)
     end subroutine  SimulaPara_xR_T_AMP
@@ -506,14 +513,14 @@ contains
         implicit none
         real(kr8) :: isi1, isi2
         logical   :: correct_isi, r
-        integer   :: i1,i2
-        if (correct_isi) then
-            i1 = int(floor(isi1))
-            i2 = int(floor(isi2))
-            r = (i1 == i2) .or. (i1 == (i2-1)) .or. (i1 == (i2+1))
-        else
-            r = isi1 == isi2
-        end if
+        !integer   :: i1,i2
+        !if (correct_isi) then
+        !i1 = int(floor(isi1))
+        !i2 = int(floor(isi2))
+        !    r = (i1 == i2) .or. (i1 == (i2-1)) .or. (i1 == (i2+1))
+        !else
+        r = int(floor(isi1)) == int(floor(isi2))
+        !end if
     end function
 
     subroutine CalcISIPeriod(isi_all, isi_un, isiper)
@@ -558,7 +565,7 @@ contains
         n = size(X)
         m = 0
         do i = 1,n
-            if (X(i) == value) then
+            if (is_equal_ISI(X(i),value,.true.)) then !if (X(i) == value) then
                 m = m + 1
                 k(m) = i
                 if (m == 2) then
@@ -590,40 +597,29 @@ contains
     ! o algoritmo abaixo esta incorporado na rotina
     ! SimulaPara_xR_T e, portanto, nao esta sendo usado
     ! neste programa por enquanto
-    subroutine findISI(x, isi)
+    subroutine findISI(x, isi, xThreshold)
         real*8, intent(in) :: x(:)
         real*8, allocatable, intent(out) :: isi(:)
         real*8, allocatable :: isiData(:)
-        integer :: i, k, iplus, crossCounter
-        real*8 :: t1, t2, ts, tsA
+        real*8  :: xThreshold
+        integer :: k, t0, t, tnext!, crossCounter
+        !real*8 :: t1, t2, ts, tsA
 
-        t1 = 0
-        t2 = 0
-        ts = 0
-        tsA = 0
-        crossCounter = 0
         n = size(x, 1) - 1
         allocate(isiData(1:n)) ! alocando n valores para os isi
-        i = 1
-        do while (x(i) > 0.0D0) ! garantindo que o loop principal começara com x(i)<0
-            i = i + 1
-        end do
-        k = 1
-        do while (i <= n) ! loop principal
-            iplus = i + 1
-            if (x(i) * x(iplus) < 0) then ! cruzou o eixo x = 0
-                if (modulo(crossCounter,2) == 0) then ! como começou abaixo de x = 0, crossCounter par significa subindo
-                    t1 = (dble(i) + dble(iplus)) / 2.0D0
-                else ! crossCounter impar significa descendo
-                    t2 = (dble(i) + dble(iplus)) / 2.0D0
-                    ts = (t1 + t2) / 2.0D0
-                    isiData(k) = ts - tsA
-                    tsA = ts
-                    k = k + 1
+        t  = 1
+        k  = 0
+        t0 = 0
+        do while (t <= n) ! loop principal
+            tnext = t + 1
+            if ((x(t) - xThreshold) * (x(tnext) - xThreshold) < 0.0D0) then ! crossed x==xThreshold
+                if ((dabs(x(t) - xThreshold)<1.0e-10).and.(x(t) < x(tnext))) then ! the curve is climbing, and the previous x cannot be the threshold
+                    k          = k + 1
+                    isiData(k) = t - t0 + 1
+                    t0         = tnext
                 end if
-                crossCounter = crossCounter + 1
             end if
-            i = i + 1
+            t = t + 1
         end do
         k = k - 1 ! k = total de ISI encontrados
         allocate(isi(1:(k-1)))
