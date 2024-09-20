@@ -361,7 +361,8 @@ contains
                 is_fp_counter = is_fp_counter + 1
             else
                 is_fp_counter = 0
-            if (is_fp_counter > (tEff/2)) ! this is a fixed point if the attractor stayed equal for too long
+            end if
+            if (is_fp_counter > (tEff/2)) then ! this is a fixed point if the attractor stayed equal for too long
                 isFP = .true.
                 exit
             end if
@@ -437,7 +438,8 @@ contains
                 is_fp_counter = is_fp_counter + 1
             else
                 is_fp_counter = 0
-            if (is_fp_counter > (par%tTransient/2)) ! this is a fixed point if the attractor stayed equal for too long
+            end if
+            if (is_fp_counter > (par%tTransient/2)) then ! this is a fixed point if the attractor stayed equal for too long
                 isFP = .true.
                 exit
             end if
@@ -460,7 +462,8 @@ contains
                     is_fp_counter = is_fp_counter + 1
                 else
                     is_fp_counter = 0
-                if (is_fp_counter > (tEff/2)) ! this is a fixed point if the attractor stayed equal for too long
+                end if
+                if (is_fp_counter > (tEff/2)) then ! this is a fixed point if the attractor stayed equal for too long
                     isFP = .true.
                     exit
                 end if
