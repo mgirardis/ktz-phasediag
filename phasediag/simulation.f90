@@ -34,10 +34,10 @@ module Simulation
     !    end function KTzJacobMatrix
     !end interface
 
-    private :: SimulaPara_xR_T_ISI, SimulaPara_xR_T_AMP, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
+    private :: SimulaPara_phaseDiag_ISI, SimulaPara_phaseDiag_AMP, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
     private :: KTzLogJacob, KTzTanhJacob, K2TzJacob, KTzJacobMatrix, findFirstLoc, findTwoConsecLoc, CalcISIPeriod
-    private :: unique, findISI, logisticFunc, GetKTzParams, GetKTzParamValue, GetInputKTzParams, logspace, linspace
-    public :: Simula, CalcLyapunovExp
+    private :: unique, logisticFunc, GetKTzParams, GetKTzParamValue, GetInputKTzParams, logspace, linspace
+    public :: Simula, CalcLyapunovExp, findISI
 contains
 
     subroutine CalcLyapunovExp(lambda)
@@ -169,9 +169,9 @@ contains
                     !write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,'; '//trim(par%parA)//'=', parA
                     neuPar = GetKTzParams(parA,parB)
                     if (isISI) then
-                        call SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity, ll_or_isiper)
+                        call SimulaPara_phaseDiag_ISI(neuPar, KTzFunc, isi, intensity, ll_or_isiper)
                     else
-                        call SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, isi, intensity, ll_or_isiper)
+                        call SimulaPara_phaseDiag_AMP(neuPar, KTzFunc, KTzJac, isi, intensity, ll_or_isiper)
                     end if
                     n = size(isi, 1)
                     do k = 1, n
@@ -201,9 +201,9 @@ contains
                     !write (*,*) 'Simulando para '//trim(par%parB)//'=',parB,'; '//trim(par%parA)//'=', parA
                     neuPar = GetKTzParams(parA,parB)
                     if (isISI) then
-                        call SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity, ll_or_isiper)
+                        call SimulaPara_phaseDiag_ISI(neuPar, KTzFunc, isi, intensity, ll_or_isiper)
                     else
-                        call SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, isi, intensity, ll_or_isiper)
+                        call SimulaPara_phaseDiag_AMP(neuPar, KTzFunc, KTzJac, isi, intensity, ll_or_isiper)
                     end if
                     n = size(isi, 1)
                     do k = 1, n
@@ -291,7 +291,7 @@ contains
         end if
     end function GetKTzParamValue
 
-    subroutine SimulaPara_xR_T_ISI(neuPar, KTzFunc, isi, intensity, isiper)
+    subroutine SimulaPara_phaseDiag_ISI(neuPar, KTzFunc, isi, intensity, isiper)
         use Input
         implicit none
         real(kr8), allocatable, intent(inout) :: isi(:), intensity(:), isiper(:)
@@ -369,7 +369,7 @@ contains
 
             ! this is not a FP point...
             if ((xAnt - par%xThreshold) * (x(1) - par%xThreshold) < 0.0D0) then ! crossed x==xThreshold
-                if ((dabs(xAnt - par%xThreshold)<1.0e-10).and.(xAnt < x(1))) then ! the curve is climbing, and the previous x cannot be the threshold
+                if ((dabs(xAnt - par%xThreshold)>1.0D-10).and.(xAnt < x(1))) then ! the curve is climbing, and the previous x cannot be the threshold
                     k          = k + 1
                     isiData(k) = t - t0 + 1
                     t0         = t
@@ -390,9 +390,9 @@ contains
             call unique(isiData(2:k), par%correctISI, isi, intensity)
             call CalcISIPeriod(isiData(2:k), isi, isiper)
         end if
-    end subroutine  SimulaPara_xR_T_ISI
+    end subroutine  SimulaPara_phaseDiag_ISI
 
-    subroutine SimulaPara_xR_T_AMP(neuPar, KTzFunc, KTzJac, amp, intensity, lambda_lyapm)
+    subroutine SimulaPara_phaseDiag_AMP(neuPar, KTzFunc, KTzJac, amp, intensity, lambda_lyapm)
         use Input
         use Chaos
         implicit none
@@ -476,7 +476,7 @@ contains
             amp          = xMax - xMin
         end if
         lambda_lyapm = maxval(lambda_lyap / tTotal)
-    end subroutine  SimulaPara_xR_T_AMP
+    end subroutine  SimulaPara_phaseDiag_AMP
 
     ! intensity eh a qtd de vezes que um valor de x se repete, em relacao ao total de valores de x
     ! tal que sum(intensity) = 1
@@ -601,10 +601,10 @@ contains
     ! SimulaPara_xR_T e, portanto, nao esta sendo usado
     ! neste programa por enquanto
     subroutine findISI(x, isi, xThreshold)
-        real*8, intent(in) :: x(:)
-        real*8, allocatable, intent(out) :: isi(:)
-        real*8, allocatable :: isiData(:)
-        real*8  :: xThreshold
+        real(kr8), intent(in) :: x(:)
+        real(kr8), allocatable, intent(out) :: isi(:)
+        real(kr8), allocatable :: isiData(:)
+        real(kr8)  :: xThreshold
         integer :: k, t0, t, tnext!, crossCounter
         !real*8 :: t1, t2, ts, tsA
 
@@ -616,7 +616,8 @@ contains
         do while (t <= n) ! loop principal
             tnext = t + 1
             if ((x(t) - xThreshold) * (x(tnext) - xThreshold) < 0.0D0) then ! crossed x==xThreshold
-                if ((dabs(x(t) - xThreshold)<1.0e-10).and.(x(t) < x(tnext))) then ! the curve is climbing, and the previous x cannot be the threshold
+                if ((dabs(x(t) - xThreshold)>1.0D-10).and.(x(t) < x(tnext))) then ! the curve is climbing, and the previous x cannot be the threshold
+                    !print *, 'crossed'
                     k          = k + 1
                     isiData(k) = t - t0 + 1
                     t0         = tnext
@@ -624,8 +625,7 @@ contains
             end if
             t = t + 1
         end do
-        k = k - 1 ! k = total de ISI encontrados
-        allocate(isi(1:(k-1)))
+        allocate(isi(2:k))
         isi = isiData(2:k)
     end subroutine findISI
 

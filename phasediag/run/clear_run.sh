@@ -2,3 +2,5 @@
 
 rm out/*
 rm err/*
+ts -C
+

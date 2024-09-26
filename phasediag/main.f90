@@ -17,8 +17,25 @@ program main
     real, dimension(2) :: timearray
     !real(kr8) :: lambda(3)
     !real(kr8), dimension(3,3) :: A,L,U,B
+    !real(kr8), allocatable :: x(:), isi(:)
+    !real(kr8) :: pi
+    !integer :: t, n
     
     sim_time = dclock()
+
+    !n = 1000
+    !allocate(x(1:n))
+    !pi = dacos(-1.0D0)
+    !x(1:n) = (/ (dcos( dble(t)*2.0D0*pi/100.0D0 ) , t=1,n) /)
+    !call findISI(x, isi, 0.0D0)
+    !write(*,*) 'x(1:10)='
+    !write(*,*) x(1:10)
+    !write(*,*) ' '
+    !write(*,*) ' '
+    !write(*,*) ' '
+    !write(*,*) 'isi='
+    !write(*,*) isi
+    !call exit(1)
 
     ! (row,col)
     !A(1,1) = 10.0
@@ -61,7 +78,7 @@ program main
     !write(*,*) 'diagonal of A'
     !write(*,*) diag(A)
     !
-    !call exit()
+    !call exit(1)
     
     call inicializaParametros()
     
@@ -94,7 +111,7 @@ program main
     !
     !call CalcLyapunovExp(lambda)
     !write(*,*) lambda
-    !call exit()
+    !call exit(1)
 
     write (*,*) 'Simulando ...'
     call Simula(parBData, parAData, isiData, intData, llisiperData)
