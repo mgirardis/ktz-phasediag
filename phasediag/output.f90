@@ -2,8 +2,7 @@ module Output
 
     use precision
 
-    public :: AbreArquivo, EscreveArquivo, VerificaNomeArquivo, &
-              SeparaNomeExtensao
+    public :: AbreArquivo, EscreveArquivo, VerificaNomeArquivo, SeparaNomeExtensao
 
 contains
 
@@ -18,8 +17,7 @@ contains
             ofileName = fileName
         end if
 
-        open(unit=11, file=trim(fileName), status=trim(stat), action=trim(act),&
-             iostat=ios)
+        open(unit=11, file=trim(fileName), status=trim(stat), action=trim(act), iostat=ios)
         if (ios /= 0) then
             write (*,*) 'ERRO ao abrir arquivo de saida'
             stop
@@ -28,9 +26,9 @@ contains
         u = 11
     end function AbreArquivo
 
-    subroutine EscreveArquivo(col1, col2, col3, col4, col5, formatStr, header, &
-                              ofileName)
+    subroutine EscreveArquivo(col1, col2, col3, col4, col5, formatStr, header, ofileName, break2lines)
         real(kr8), intent(in) :: col1(:), col2(:), col3(:), col4(:), col5(:)
+        logical  , intent(in) :: break2lines
         character(len=*) :: header, formatStr, ofileName
         character(len=512) :: fileName
         integer :: i, n
@@ -43,7 +41,7 @@ contains
         write (11, '(A)') trim(header)
         write (11,trim(formatStr)) col1(1), col2(1), col3(1), col4(1), col5(1)
         do i = 2, n
-            if (col1(i) /= col1(i-1)) then ! colocando duas quebras de linhas
+            if ((break2lines).and.(col1(i) /= col1(i-1))) then ! colocando duas quebras de linhas
                 write (11,*)               ! entre dois xR diferentes
                 write (11,*)               ! assim, gnuplot pode plotar usando keyword index
             end if

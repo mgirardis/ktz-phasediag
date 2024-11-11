@@ -11,30 +11,110 @@ program main
     character(len=80), allocatable :: args(:)
     integer(kind=4) :: nArgs, i, ios
     real(kr8), allocatable :: isiData(:), parAData(:), parBData(:), intData(:), llisiperData(:)
-    character(len=1024) :: headerSaida
-    character(len=30)   :: lastOutputName
     real(8) :: sim_time
     real, dimension(2) :: timearray
+    logical :: isISI
     !real(kr8) :: lambda(3)
     !real(kr8), dimension(3,3) :: A,L,U,B
-    !real(kr8), allocatable :: x(:), isi(:)
-    !real(kr8) :: pi
+    !real(kr8), allocatable :: x1(:), x2(:), isi(:)
+    !real(kr8) :: pi, x_period
     !integer :: t, n
+    !real(kr8), allocatable :: x1(:,:)
+    !integer :: x_period
+    
     
     sim_time = dclock()
+    
+    !type(KTzParam) :: neuPar
+    !real(kr8), allocatable :: x_values(:,:), x_only(:)
+    !integer :: Q
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Debugging periodicity
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !neuPar = GetKTzParamStruct(1.0D0, 0.2D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0)
+    !call SimulaMapa(neuPar, "L", (/ -0.5D0, -0.5D0, 0.0D0 /), 10000, 12000, x_values)
+    !allocate(x_only(1:size(x_values,1)))
+    !x_only = x_values(1:,1)
+    !Q = findPeriod(x_only, 1.0D-8)
+    !write(*,*) "Period of 1/6: Q=",Q
+    !
+    !deallocate(x_only,x_values)
+    !write(*,*) "----------------"
+    !
+    !neuPar = GetKTzParamStruct(0.6D0, 0.35D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0)
+    !call SimulaMapa(neuPar, "L", (/ -0.5D0, -0.5D0, 0.0D0 /), 10000, 20000, x_values)
+    !allocate(x_only(1:size(x_values,1)))
+    !x_only = x_values(1:,1)
+    !Q = findPeriod(x_only, 1.0D-8)
+    !write(*,*) "Period of K=0.6 T=0.35: Q=",Q
+    !
+    !deallocate(x_only,x_values)
+    !write(*,*) "----------------"
+    !
+    !neuPar = GetKTzParamStruct(0.6D0, 0.234386400000D+00, 0.001D0, 0.001D0, -0.194405192616D+00, 0.0D0, 0.0D0)
+    !call SimulaMapa(neuPar, "L", (/ -0.5D0, -0.5D0, 0.0D0 /), 10000, 20000, x_values)
+    !allocate(x_only(1:size(x_values,1)))
+    !x_only = x_values(1:,1)
+    !Q = findPeriod(x_only, 1.0D-8)
+    !write(*,*) "Period of weird result: Q=",Q
+    !call exit(1)
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Debugging periodicity
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !write (*,*) " ********** TESTING 0/1"
+    !call calculate_and_find_period_test("0/1")
+    !write (*,*) " ********** TESTING 1/4"
+    !call calculate_and_find_period_test("1/4")
+    !write (*,*) " ********** TESTING 1/6"
+    !call calculate_and_find_period_test("1/6")
+    !write (*,*) " ********** TESTING 1/8"
+    !call calculate_and_find_period_test("1/8")
+    !write (*,*) " ********** TESTING 2/14"
+    !call calculate_and_find_period_test("2/14")
+    !write (*,*) " ********** TESTING 3/16"
+    !call calculate_and_find_period_test("3/16")
+    !write (*,*) " ********** TESTING 2/10"
+    !call calculate_and_find_period_test("2/10")
+    !write (*,*) " ********** TESTING 3/14"
+    !call calculate_and_find_period_test("3/14")
+    !write (*,*) " ********** TESTING 4/18"
+    !call calculate_and_find_period_test("4/18")
+    !write (*,*) " ********** TESTING aper"
+    !call calculate_and_find_period_test("aper")
+    !call exit(1)
+    
 
     !n = 1000
-    !allocate(x(1:n))
+    !allocate(x1(1:n),x2(1:n))
     !pi = dacos(-1.0D0)
-    !x(1:n) = (/ (dcos( dble(t)*2.0D0*pi/100.0D0 ) , t=1,n) /)
-    !call findISI(x, isi, 0.0D0)
+    !x1(1:n) = (/ (dcos( dble(t)*2.0D0*pi/100.0D0 ) , t=1,n) /)
+    !call findISI(x1, isi, 0.0D0)
     !write(*,*) 'x(1:10)='
-    !write(*,*) x(1:10)
+    !write(*,*) x1(1:10)
     !write(*,*) ' '
-    !write(*,*) ' '
+    !write(*,*) ' expected period = 100 '
     !write(*,*) ' '
     !write(*,*) 'isi='
     !write(*,*) isi
+    !write(*,*) ' '
+    !write(*,*) ' '
+    !write(*,*) ' '
+    !x2(1:n) = (/ (dcos( dble(t)*2.0D0*pi/20.0D0 )  , t=1,n) /)
+    !x_period = findPeriod(x2,1D-5)
+    !write(*,*) 'x(1:20)='
+    !write(*,*) x2(1:10)
+    !write(*,*) ' '
+    !write(*,*) ' expected period = 20'
+    !write(*,*) ' '
+    !write(*,*) 'P='
+    !write(*,*) x_period
     !call exit(1)
 
     ! (row,col)
@@ -117,23 +197,16 @@ program main
     call Simula(parBData, parAData, isiData, intData, llisiperData)
 
     if (.not.par%writeOnRun) then
-        if (trim(par%measure) == "ISI") then
-            lastOutputName = "ISIPeriod"
-        else
-            lastOutputName = "LyapExp"
-        end if
-        headerSaida = trim(pegaStrParamEntrada())// &
-                      "# "//trim(par%parB)//"     "//trim(par%parA)//&
-                      "     "//trim(par%measure)//"     intensity     "//&
-                      trim(lastOutputName)
+        isISI = (trim(par%measure) == "ISI") ! makes the output break two lines if it is ISI
         call EscreveArquivo(parBData, &
                             parAData, &
                             isiData, &
                             intData, &
                             llisiperData, &
-                            "(4D20.12)", &
-                            headerSaida, &
-                            pegaNomeArqSaida())
+                            trim(getOutputFormatStr()), & !"(5D20.12)", &
+                            trim(getOutFileHeader()), &
+                            pegaNomeArqSaida(),&
+                            isISI)
     end if
 
     call ellapsed_time(sim_time)

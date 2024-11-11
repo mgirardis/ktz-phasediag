@@ -38,8 +38,9 @@ module Input
         character(len=1)   :: model
         character(len=2)   :: parA, parB
         character(len=3)   :: measure, parAScale, parBScale
-        character(len=128) :: outFileSuffix
+        character(len=30)  :: lastOutputColName, intensityColName, measureColName
         character(len=100) :: outFileDir
+        character(len=128) :: outFileSuffix
         logical :: writeOnRun
         logical :: correctISI
     end type inputParam
@@ -48,10 +49,21 @@ module Input
 
     public :: ajustaParametros, inicializaParametros
     public :: pegaStrParamEntrada, pegaNomeArqSaida
-    public :: par
-    private :: PrintHelp
+    public :: par, getOutFileHeader, getOutputFormatStr
+    private :: PrintHelp, setDependentParameters
 
 contains
+
+    function getOutFileHeader() result(str)
+        character(len=1024) :: str
+
+        str = trim(trim(pegaStrParamEntrada())// &
+                    "# "//trim(par%parB)//&
+                    "     "//trim(par%parA)//&
+                    "     "//trim(par%measureColName)//&
+                    "     "//trim(par%intensityColName)//&
+                    "     "//trim(par%lastOutputColName))
+    end function getOutFileHeader
 
     function pegaStrParamEntrada() result (str)
         character(len=1024) :: str
@@ -131,34 +143,75 @@ contains
     end function pegaNomeArqSaida
 
     subroutine inicializaParametros()
-        par%parA          = "T"
-        par%parAScale     = "LIN" ! LIN or LOG
-        par%parA1         = 1.0D-3
-        par%parA2         = 1.0D0
-        par%nparA         = 1000
-        par%parB          = "xR"
-        par%parBScale     = "LIN" ! LIN or LOG
-        par%parB1         = 0.0D0
-        par%parB2         = -1.0D0
-        par%nparB         = 100
-        par%tTotal        = 10000
-        par%tTransient    = 2000
-        par%K             = 0.6D0
-        par%T             = 0.3D0
-        par%d             = 0.001D0
-        par%l             = 0.001D0
-        par%xR            = -0.5D0
-        par%Z             = 0.0D0
-        par%H             = 0.0D0
-        par%model         = "L" ! L or T or 2
-        par%measure       = "ISI" ! ISI or AMP
-        par%x0            = (/ 1.0, 1.0, 1.0 /)
-        par%xThreshold    = 0.0D0
-        par%writeOnRun    = .false.
-        par%correctISI    = .true.
-        par%outFileSuffix = ''
-        par%outFileDir    = '.'
+        par%parA              = "T"
+        par%parAScale         = "LIN" ! LIN or LOG
+        par%parA1             = 1.0D-3
+        par%parA2             = 1.0D0
+        par%nparA             = 1000
+        par%parB              = "xR"
+        par%parBScale         = "LIN" ! LIN or LOG
+        par%parB1             = 0.0D0
+        par%parB2             = -1.0D0
+        par%nparB             = 100
+        par%tTotal            = 10000
+        par%tTransient        = 2000
+        par%K                 = 0.6D0
+        par%T                 = 0.3D0
+        par%d                 = 0.001D0
+        par%l                 = 0.001D0
+        par%xR                = -0.5D0
+        par%Z                 = 0.0D0
+        par%H                 = 0.0D0
+        par%model             = "L" ! L or T or 2
+        par%measure           = "ISI" ! ISI or AMP or WIN
+        par%x0                = (/ 1.0, 1.0, 1.0 /)
+        par%xThreshold        = 0.0D0
+        par%writeOnRun        = .false.
+        par%correctISI        = .true.
+        par%outFileSuffix     = ''
+        par%outFileDir        = '.'
     end subroutine inicializaParametros
+    
+    subroutine setDependentParameters(ios)
+        integer, intent(inout) :: ios
+
+        if (trim(par%measure) == "ISI") then
+            par%measureColName    = "ISI"
+            par%intensityColName  = "intensity"
+            par%lastOutputColName = "ISIPeriod"
+        else if (trim(par%measure) == "WIN") then
+            par%measureColName    = "WindingNum"
+            par%intensityColName  = "Cycles"
+            par%lastOutputColName = "Period"
+        else if (trim(par%measure) == "AMP") then
+            par%measureColName    = "Amplitude"
+            par%intensityColName  = "intensity"
+            par%lastOutputColName = "LyapExp"
+        else
+            write (*,*) "ERROR ::: UNKNOWN VALUE FOR par%measure = ",par%measure
+            ios = -1
+            return
+        end if
+        if ((par%d == 0.0D0) .and. (par%l == 0.0D0)) then
+            par%x0(3) = 0.0D0
+            write (*,*) "WARNING ::: FORCING x0(3) = 0 BECAUSE delta=lambda=0 (SIMULATION of static KT model)"
+        end if
+    end subroutine setDependentParameters
+
+    function getOutputFormatStr() result(str)
+        character(len=256) :: str
+        
+        str = "(5D20.12)"
+        return
+        ! writing output as I20 (integer) messes up with the "Infinite" values generated in the simulation (1.0/0.0)
+        if (trim(par%measure) == "ISI") then
+            str = "(2D20.12, 1X, I20, 1X, D20.12, 1X, I20)" 
+        else if (trim(par%measure) == "WIN") then
+            str = "(3D20.12, 1X, I20, 1X, I20)"
+        else ! par%measure == "AMP" or any other thing
+            str = "(5D20.12)"
+        end if
+    end function getOutputFormatStr
 
     ! adjusts the values of the parameters defined in the file
     ! 01_varglob.f90
@@ -276,6 +329,9 @@ contains
             write (*,*) "-> ", trim(parVal(1)), " = ", trim(parVal(2))
 
         end do
+
+        call setDependentParameters(ios)
+
     end subroutine ajustaParametros
 
     subroutine PrintHelp()
@@ -295,15 +351,19 @@ contains
         write (*,*) 'calcula ISI(parA,parB) e periodo[ISI](parA,parB), ou Amplitude(parA,parB) e Lyapunov(parA,parB)'
         write (*,*) 'onde parA e parB podem ser quaisquer dos parametros do modelo (K,T,d,l,xR,H,Z)'
         write (*,*) ' '
+        write (*,*) '****************************** '
+        write (*,*) ' '
+        write (*,*) 'OBS: para calcular Z estático, usar delta=lambda=z0=0'
+        write (*,*) ' '
+        write (*,*) '****************************** '
+        write (*,*) ' '
         write (*,*) 'o eixo x serah o parametro parA com nparA valores no intervalo [parA1,parA2]'
         write (*,*) 'o eixo y serah o parametro parB com nparB valores no intervalo [parB1,parB2]'
         write (*,*) 'em ambos os eixos, a escala pode ser'
         write (*,*) '   logaritmica [parAScale=LOG ou parBScale=LOG]'
         write (*,*) '   linear [parAScale=LIN ou parBScale=LIN]'
         write (*,*) ' '
-        write (*,*) 'para simular a versao sem z(t), basta ajustar os parametros: d=0 l=0 z0=0'
-        write (*,*) 'na linha de comando;'
-        write (*,*) ' '
+        write (*,*) '****************************** '
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) 'MEDIDAS: (parametro measure)'
@@ -313,6 +373,7 @@ contains
         write (*,*) '                         entao muda o resultado da periodicidade'
         write (*,*) ' measure=AMP -> calcula a amplitude e o maior expoente de Lyapunov'
         write (*,*) ' '
+        write (*,*) '****************************** '
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) 'EQUACOES: (parametro model)'
@@ -334,6 +395,7 @@ contains
         write (*,*) '      z(t+1) = [1-d]*z(t) - l*[x(t) - xR]'
         write (*,*) '   ref -> DOI:10.1063/5.0202743'
         write (*,*) ' '
+        write (*,*) '****************************** '
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) 'EXEMPLO:'
@@ -349,6 +411,7 @@ contains
         write (*,*) '   os dados vao ser escritos a medida que os calculos sao feitos pra economizar'
         write (*,*) '   memoria'
         write (*,*) ' '
+        write (*,*) '****************************** '
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) 'COMO USAR:'
@@ -367,12 +430,13 @@ contains
                         H=VALOR_NUMERICO Z=VALOR_NUMERICO &
                         tTotal=VALOR_NUMERICO tTransient=VALOR_NUMERICO &
                         xThreshold=VALOR_NUMERICO &
-                        model=L_ou_T_ou_2 measure=ISI_ou_AMP &
+                        model=L_ou_T_ou_2 measure=ISI_ou_AMP_ou_WIN &
                         writeOnRun=0_ou_1 &
                         correctISI=0_ou_1 &
                         outFileSuffix=OUTPUT_FILE_NAME_SUFFIX &
                         outFileDir=OUTPUT_FILE_DIR'
         write (*,*) ' '
+        write (*,*) '****************************** '
         write (*,*) ' '
         write (*,*) '-'
         write (*,*) 'ONDE:'
@@ -403,7 +467,7 @@ contains
                                                          [parB1;parB2]'
         write (*,'(A11,A,F10.5,A)') trim(par_x0)//' ',        '-> [padrao: ',par%x0(1),'] cond inicial x'
         write (*,'(A11,A,F10.5,A)') trim(par_y0)//' ',        '-> [padrao: ',par%x0(2),'] cond inicial y'
-        write (*,'(A11,A,F10.5,A)') trim(par_z0)//' ',        '-> [padrao: ',par%x0(3),'] cond inicial z'
+        write (*,'(A11,A,F10.5,A)') trim(par_z0)//' ',        '-> [padrao: ',par%x0(3),'] cond inicial z (DEVE SER 0 para simular Z estático)'
         write (*,'(A11,A,F10.5,A)') trim(par_xThreshold)//' ','-> [padrao: ',par%xThreshold,'] limiar de x(t) para &
                                                          considerar um disparo'
         write (*,'(A11,A,F10.5,A)') trim(par_K)//' ',         '-> [padrao: ',par%K,'] K do neuronio'
@@ -422,7 +486,8 @@ contains
                                                             2-tanh: 2'
         write (*,'(A11,A,A10,A)')    trim(par_measure)//' ',   '-> [padrao: ',trim(par%measure),'] Possiveis valores &
                                                              medir o ISI: ISI ; &
-                                                             medir a amplitude: AMP'
+                                                             medir a amplitude: AMP; &
+                                                             medir o winding number: WIN'
         write (*,'(A11,A,I10.0,A)')   trim(par_writeOnRun)//' ','-> [padrao: ',writeonrun_val,'] &
                                    Possiveis valores: 0 ou 1. Se for 1, escreve os arquivos de dados durante &
                                    a simulacao (previne erro por falta de memoria)'
