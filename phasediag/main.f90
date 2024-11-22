@@ -173,6 +173,7 @@ program main
         call ajustaParametros(args, nArgs, ios)
         if (ios == -1) then
             ! error occurred during the processing of the parameters
+            write (*,*) "*** See help: isi.exe -h"
             stop
         end if
     end if

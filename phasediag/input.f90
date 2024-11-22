@@ -1,4 +1,38 @@
 module Input
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!
+    !!!!
+    !!!! HOW TO ADD AN INPUT PARAMETER TO THE SIMULATION
+    !!!!
+    !!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!
+    !!!! Lets add a parameter called MYPARAM
+    !!!!
+    !!!! 1. add a "character parameter" below named par_MYPARAM
+    !!!!
+    !!!! 2. Modify the "PrintHelp" to include a description of the parameter in the help
+    !!!!
+    !!!! 3. Add it to "inputParam" struct
+    !!!!
+    !!!! 4. Initialize it in "inicializaParametros"
+    !!!!
+    !!!! 5. Add it to the output file header in "pegaStrParamEntrada"
+    !!!!
+    !!!! 6. if needed, add it to the output file name in "pegaNomeArqSaida"
+    !!!!
+    !!!! 7. Add a conditional statement to "ajustaParametros" to get the input from the user for the newly added par_MYPARAM
+    !!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     use precision
     private
     character(len=20) , parameter :: par_parA          = "parA"
@@ -12,7 +46,7 @@ module Input
     character(len=20) , parameter :: par_nparB         = "nparB"
     character(len=20) , parameter :: par_parBScale     = "parBScale"
     character(len=20) , parameter :: par_tTransient    = "tTransient"
-    character(len=20) , parameter :: par_tTotal        =  "tTotal"
+    character(len=20) , parameter :: par_tTotal        = "tTotal"
     character(len=20) , parameter :: par_K             = "K"
     character(len=20) , parameter :: par_T             = "T"
     character(len=20) , parameter :: par_d             = "d"
@@ -30,19 +64,24 @@ module Input
     character(len=20) , parameter :: par_correctISI    = "correctISI"
     character(len=20) , parameter :: par_outFileSuffix = "outFileSuffix"
     character(len=20) , parameter :: par_outFileDir    = "outFileDir"
+    character(len=20) , parameter :: par_periodTol     = "periodTol"
+    character(len=20) , parameter :: par_periodMethod  = "periodMethod"
+    character(len=1)  , parameter :: tabchar           = char(9)
+    character(len=1)  , parameter :: nlchar            = char(10)
 
     type inputParam
-        real(kr8) :: parB1, parB2, parA1, parA2, K, T, d, l, xR, H, Z
-        real(kr8) :: x0(3), xThreshold
-        integer(kind=4) :: nparA, nparB, tTotal, tTransient
+        real(kr8)          :: parB1, parB2, parA1, parA2, K, T, d, l, xR, H, Z
+        real(kr8)          :: x0(3), xThreshold, periodTol
+        integer(kind=4)    :: nparA, nparB, tTotal, tTransient
         character(len=1)   :: model
         character(len=2)   :: parA, parB
         character(len=3)   :: measure, parAScale, parBScale
         character(len=30)  :: lastOutputColName, intensityColName, measureColName
+        character(len=30)  :: periodMethod
         character(len=100) :: outFileDir
         character(len=128) :: outFileSuffix
-        logical :: writeOnRun
-        logical :: correctISI
+        logical            :: writeOnRun
+        logical            :: correctISI
     end type inputParam
 
     type(inputParam) :: par
@@ -89,31 +128,35 @@ contains
                     A,F16.8,A,&
                     A,&
                     A,&
+                    A,&
                     A,3D17.8,A,&
+                    A,F16.8,A,&
                     A,F16.8,A)')&
-        '# '//trim(par_parA)//' = '//par%parA//char(10),&
-        '# '//trim(par_parA1)//' = ', par%parA1, char(10),&
-        '# '//trim(par_parA2)//' = ', par%parA2, char(10),&
-        '# '//trim(par_nparA)//' = ', par%nparA, char(10),&
-        '# '//trim(par_parAScale)//' = '//par%parAScale//char(10),&
-        '# '//trim(par_parB)//' = '//par%parB//char(10),&
-        '# '//trim(par_parB1)//' = ', par%parB1, char(10),&
-        '# '//trim(par_parB2)//' = ', par%parB2, char(10),&
-        '# '//trim(par_nparB)//' = ', par%nparB, char(10),&
-        '# '//trim(par_parBScale)//' = '//par%parBScale//char(10),&
-        '# '//trim(par_tTotal)//' = ', par%tTotal, char(10),&
-        '# '//trim(par_tTransient)//' = ', par%tTransient, char(10),&
-        '# '//trim(par_K)//' = ', par%K, char(10),&
-        '# '//trim(par_T)//' = ', par%T, char(10),&
-        '# '//trim(par_d)//' = ', par%d, char(10),&
-        '# '//trim(par_l)//' = ', par%l, char(10),&
-        '# '//trim(par_xR)//' = ', par%xR, char(10),&
-        '# '//trim(par_Z)//' = ', par%Z, char(10),&
-        '# '//trim(par_H)//' = ', par%H, char(10),&
-        '# '//trim(par_model)//' = '//par%model//char(10),&
-        '# '//trim(par_measure)//' = '//par%measure//char(10),&
-        '# '//trim(par_x0)//' = ', par%x0, char(10),&
-        '# '//trim(par_xThreshold)//' = ', par%xThreshold, char(10)
+        '# '//trim(par_parA)//' = '//par%parA//nlchar,&
+        '# '//trim(par_parA1)//' = ', par%parA1, nlchar,&
+        '# '//trim(par_parA2)//' = ', par%parA2, nlchar,&
+        '# '//trim(par_nparA)//' = ', par%nparA, nlchar,&
+        '# '//trim(par_parAScale)//' = '//par%parAScale//nlchar,&
+        '# '//trim(par_parB)//' = '//par%parB//nlchar,&
+        '# '//trim(par_parB1)//' = ', par%parB1, nlchar,&
+        '# '//trim(par_parB2)//' = ', par%parB2, nlchar,&
+        '# '//trim(par_nparB)//' = ', par%nparB, nlchar,&
+        '# '//trim(par_parBScale)//' = '//par%parBScale//nlchar,&
+        '# '//trim(par_tTotal)//' = ', par%tTotal, nlchar,&
+        '# '//trim(par_tTransient)//' = ', par%tTransient, nlchar,&
+        '# '//trim(par_K)//' = ', par%K, nlchar,&
+        '# '//trim(par_T)//' = ', par%T, nlchar,&
+        '# '//trim(par_d)//' = ', par%d, nlchar,&
+        '# '//trim(par_l)//' = ', par%l, nlchar,&
+        '# '//trim(par_xR)//' = ', par%xR, nlchar,&
+        '# '//trim(par_Z)//' = ', par%Z, nlchar,&
+        '# '//trim(par_H)//' = ', par%H, nlchar,&
+        '# '//trim(par_model)//' = '//par%model//nlchar,&
+        '# '//trim(par_measure)//' = '//par%measure//nlchar,&
+        '# '//trim(par_periodMethod)//' = '//par%periodMethod//nlchar,&
+        '# '//trim(par_x0)//' = ', par%x0, nlchar,&
+        '# '//trim(par_periodTol)//' = ', par%periodTol, nlchar,&
+        '# '//trim(par_xThreshold)//' = ', par%xThreshold, nlchar
     end function pegaStrParamEntrada
 
     function pegaNomeArqSaida() result (nome)
@@ -164,8 +207,10 @@ contains
         par%H                 = 0.0D0
         par%model             = "L" ! L or T or 2
         par%measure           = "ISI" ! ISI or AMP or WIN
+        par%periodMethod      = "aftersim1" ! onthefly OR aftersim1 OR aftersim2
         par%x0                = (/ 1.0, 1.0, 1.0 /)
         par%xThreshold        = 0.0D0
+        par%periodTol         = 1.0D-8
         par%writeOnRun        = .false.
         par%correctISI        = .true.
         par%outFileSuffix     = ''
@@ -188,7 +233,14 @@ contains
             par%intensityColName  = "intensity"
             par%lastOutputColName = "LyapExp"
         else
-            write (*,*) "ERROR ::: UNKNOWN VALUE FOR par%measure = ",par%measure
+            write (*,*) "ERROR ::: UNKNOWN VALUE FOR PARAMETER measure = ",par%measure
+            ios = -1
+            return
+        end if
+        if (.not.((trim(par%periodMethod) == "onthefly")  .or. &
+                  (trim(par%periodMethod) == "aftersim1") .or. &
+                  (trim(par%periodMethod) == "aftersim2"))       ) then
+            write (*,*) "ERROR ::: UNKNOWN VALUE FOR PARAMETER periodMethod = ",par%periodMethod
             ios = -1
             return
         end if
@@ -288,6 +340,8 @@ contains
                 par%x0(3) = strToDouble(parVal(2))
             else if (parVal(1) == par_xThreshold) then
                 par%xThreshold = strToDouble(parVal(2))
+            else if (parVal(1) == par_periodTol) then
+                par%periodTol = strToDouble(parVal(2))
             else if (parVal(1) == par_tTotal) then
                 par%tTotal = strToInteger(parVal(2))
             else if (parVal(1) == par_tTransient) then
@@ -300,6 +354,8 @@ contains
                 par%model = trim(parVal(2))
             else if (parVal(1) == trim(par_measure)) then
                 par%measure = trim(parVal(2))
+            else if (parVal(1) == trim(par_periodMethod)) then
+                par%periodMethod = trim(parVal(2))
             else if (parVal(1) == trim(par_parAScale)) then
                 par%parAScale = trim(parVal(2))
             else if (parVal(1) == trim(par_parBScale)) then
@@ -371,7 +427,12 @@ contains
         write (*,*) '                ATENCAO: parametro correctISI torna todos os ISI inteiros,'
         write (*,*) '                         ou seja, faz com que 11.5 seja igual a 11 ou 12'
         write (*,*) '                         entao muda o resultado da periodicidade'
+        write (*,*) ' '
         write (*,*) ' measure=AMP -> calcula a amplitude e o maior expoente de Lyapunov'
+        write (*,*) ' '
+        write (*,*) ' measure=WIN -> calcula o winding number do atrator (w = nro ciclos / periodo)'
+        write (*,*) '                quantos ciclos ocorrem em um periodo'
+        write (*,*) '                ATENCAO: o maximo periodo eh tEff = tTotal - tTrans'
         write (*,*) ' '
         write (*,*) '****************************** '
         write (*,*) ' '
@@ -430,7 +491,9 @@ contains
                         H=VALOR_NUMERICO Z=VALOR_NUMERICO &
                         tTotal=VALOR_NUMERICO tTransient=VALOR_NUMERICO &
                         xThreshold=VALOR_NUMERICO &
+                        periodTol=VALOR_NUMERICO &
                         model=L_ou_T_ou_2 measure=ISI_ou_AMP_ou_WIN &
+                        periodMethod=onthefly_OU_aftersim1_OU_aftersim2&
                         writeOnRun=0_ou_1 &
                         correctISI=0_ou_1 &
                         outFileSuffix=OUTPUT_FILE_NAME_SUFFIX &
@@ -441,63 +504,47 @@ contains
         write (*,*) '-'
         write (*,*) 'ONDE:'
         write (*,*) ' '
-        write (*,'(A11,A,A10,A)')    trim(par_parA)//' ',      '-> [padrao: ',trim(par%parA),'] nome do parametro &
-                                                         pro eixo X do diag de fases &
-                                                         (possiveis valores: K,T,d,l,xR,H,Z)'
-        write (*,'(A11,A,A10,A)')    trim(par_parAScale)//' ',   '-> [padrao: ',trim(par%parAScale),'] Possiveis valores &
-                                                                variacao linear: LIN ; &
-                                                                escala logaritmica: LOG'
-        write (*,'(A11,A,F10.5,A)') trim(par_parA1)//' ',     '-> [padrao: ',par%parA1,'] menor valor de parA no &
-                                                         intervalo [parA1;parA2]'
-        write (*,'(A11,A,F10.5,A)') trim(par_parA2)//' ',     '-> [padrao: ',par%parA2,'] maior valor de parA no &
-                                                         intervalo [parA1;parA2]'
-        write (*,'(A11,A,I10.0,A)')   trim(par_nparA)//' ',     '-> [padrao: ',par%nparA,'] qtd de parA no intervalo &
-                                                         [parA1;parA2]'
-        write (*,'(A11,A,A10,A)')    trim(par_parB)//' ',      '-> [padrao: ',trim(par%parB),'] nome do parametro &
-                                                         pro eixo Y do diag de fases &
-                                                         (possiveis valores: K,T,d,l,xR,H,Z)'
-        write (*,'(A11,A,A10,A)')    trim(par_parBScale)//' ',   '-> [padrao: ',trim(par%parBScale),'] Possiveis valores &
-                                                                    variacao linear: LIN ; &
-                                                                    escala logaritmica: LOG'
-        write (*,'(A11,A,F10.5,A)') trim(par_parB1)//' ',     '-> [padrao: ',par%parB1,'] menor valor de parB no &
-                                                         intervalo [parB1;parB2]'
-        write (*,'(A11,A,F10.5,A)') trim(par_parB2)//' ',     '-> [padrao: ',par%parB2,'] maior valor de parB no &
-                                                         intervalo [parB1;parB2]'
-        write (*,'(A11,A,I10.0,A)')   trim(par_nparB)//' ',     '-> [padrao: ',par%nparB,'] qtd de parB no intervalo &
-                                                         [parB1;parB2]'
-        write (*,'(A11,A,F10.5,A)') trim(par_x0)//' ',        '-> [padrao: ',par%x0(1),'] cond inicial x'
-        write (*,'(A11,A,F10.5,A)') trim(par_y0)//' ',        '-> [padrao: ',par%x0(2),'] cond inicial y'
-        write (*,'(A11,A,F10.5,A)') trim(par_z0)//' ',        '-> [padrao: ',par%x0(3),'] cond inicial z (DEVE SER 0 para simular Z estático)'
-        write (*,'(A11,A,F10.5,A)') trim(par_xThreshold)//' ','-> [padrao: ',par%xThreshold,'] limiar de x(t) para &
-                                                         considerar um disparo'
-        write (*,'(A11,A,F10.5,A)') trim(par_K)//' ',         '-> [padrao: ',par%K,'] K do neuronio'
-        write (*,'(A11,A,F10.5,A)') trim(par_T)//' ',         '-> [padrao: ',par%T,'] T do neuronio'
-        write (*,'(A11,A,F10.5,A)') trim(par_d)//' ',         '-> [padrao: ',par%d,'] delta do neuronio'
-        write (*,'(A11,A,F10.5,A)') trim(par_l)//' ',         '-> [padrao: ',par%l,'] lambda do neuronio'
-        write (*,'(A11,A,F10.5,A)') trim(par_xR)//' ',         '-> [padrao: ',par%xR,'] xR do neuronio'
-        write (*,'(A11,A,F10.5,A)') trim(par_Z)//' ',         '-> [padrao: ',par%Z,'] Z do neuronio (campo externo de x(t) para 2-Tanh)'
-        write (*,'(A11,A,F10.5,A)') trim(par_H)//' ',         '-> [padrao: ',par%H,'] H do neuronio (campo externo de y(t) para 2-Tanh)'
-        write (*,'(A11,A,I10.0,A)')   trim(par_tTotal)//' ',    '-> [padrao: ',par%tTotal,'] total de passos de tempo'
-        write (*,'(A11,A,I10.0,A)')   trim(par_tTransient)//' ','-> [padrao: ',par%tTransient,'] qtd de passos de tempo &
-                                                         transiente a ser ignorada'
-        write (*,'(A11,A,A10,A)')    trim(par_model)//' ',     '-> [padrao: ',trim(par%model),'] Possiveis valores &
-                                                            modelo logistico: L ; &
-                                                            tanh: T ; &
-                                                            2-tanh: 2'
-        write (*,'(A11,A,A10,A)')    trim(par_measure)//' ',   '-> [padrao: ',trim(par%measure),'] Possiveis valores &
-                                                             medir o ISI: ISI ; &
-                                                             medir a amplitude: AMP; &
-                                                             medir o winding number: WIN'
-        write (*,'(A11,A,I10.0,A)')   trim(par_writeOnRun)//' ','-> [padrao: ',writeonrun_val,'] &
-                                   Possiveis valores: 0 ou 1. Se for 1, escreve os arquivos de dados durante &
-                                   a simulacao (previne erro por falta de memoria)'
-        write (*,'(A11,A,I10.0,A)')   trim(par_correctISI)//' ','-> [padrao: ',correctisi_val,'] &
-                                   Possiveis valores: 0 ou 1. Se for 1, ISI dentro de +-1 sao considerados iguais: ISI+1=ISI-1=ISI'
-        write (*,'(A11,A,A10,A)')    trim(par_outFileSuffix)//' ',   '-> [padrao: ',trim(par%outFileSuffix),'] sufixo pro nome &
-                                                                        do arq de saida'
-        write (*,'(A11,A,A10,A)')    trim(par_outFileDir)//' ',   '-> [padrao: ',trim(par%outFileDir),'] diretorio pro  &
-                                                                            arq de saida'
-        write (*,*) 'help,-h   -> mostra essa ajuda'
+        write (*,'(A20,A,A,A)'    ) trim(par_parA)           //tabchar, '-> [padrao: ',trim(par%parA)         ,'] nome do parametro pro eixo X do diag de fases'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'possiveis valores: K,T,d,l,xR,H,Z'
+        write (*,'(A20,A,A,A)'    ) trim(par_parAScale)      //tabchar, '-> [padrao: ',trim(par%parAScale)    ,'] Possiveis valores variacao linear: LIN ; escala logaritmica: LOG'
+        write (*,'(A20,A,F10.5,A)') trim(par_parA1)          //tabchar, '-> [padrao: ',par%parA1              ,'] menor valor de parA no intervalo [parA1;parA2]'
+        write (*,'(A20,A,F10.5,A)') trim(par_parA2)          //tabchar, '-> [padrao: ',par%parA2              ,'] maior valor de parA no intervalo [parA1;parA2]'
+        write (*,'(A20,A,I10.0,A)') trim(par_nparA)          //tabchar, '-> [padrao: ',par%nparA              ,'] qtd de parA no intervalo [parA1;parA2]'
+        write (*,'(A20,A,A,A)'    ) trim(par_parB)           //tabchar, '-> [padrao: ',trim(par%parB)         ,'] nome do parametro pro eixo Y do diag de fases'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'possiveis valores: K,T,d,l,xR,H,Z'
+        write (*,'(A20,A,A,A)'    ) trim(par_parBScale)      //tabchar, '-> [padrao: ',trim(par%parBScale)    ,'] Possiveis valores variacao linear: LIN ; escala logaritmica: LOG'
+        write (*,'(A20,A,F10.5,A)') trim(par_parB1)          //tabchar, '-> [padrao: ',par%parB1              ,'] menor valor de parB no intervalo [parB1;parB2]'
+        write (*,'(A20,A,F10.5,A)') trim(par_parB2)          //tabchar, '-> [padrao: ',par%parB2              ,'] maior valor de parB no intervalo [parB1;parB2]'
+        write (*,'(A20,A,I10.0,A)') trim(par_nparB)          //tabchar, '-> [padrao: ',par%nparB              ,'] qtd de parB no intervalo [parB1;parB2]'
+        write (*,'(A20,A,F10.5,A)') trim(par_x0)             //tabchar, '-> [padrao: ',par%x0(1)              ,'] cond inicial x'
+        write (*,'(A20,A,F10.5,A)') trim(par_y0)             //tabchar, '-> [padrao: ',par%x0(2)              ,'] cond inicial y'
+        write (*,'(A20,A,F10.5,A)') trim(par_z0)             //tabchar, '-> [padrao: ',par%x0(3)              ,'] cond inicial z (DEVE SER 0 para simular Z estático)'
+        write (*,'(A20,A,F10.5,A)') trim(par_xThreshold)     //tabchar, '-> [padrao: ',par%xThreshold         ,'] limiar de x(t) para considerar um disparo'
+        write (*,'(A20,A,F10.5,A)') trim(par_periodTol)      //tabchar, '-> [padrao: ',par%periodTol          ,'] tolerancia para medir o periodo do atrator para calcular o winding number'
+        write (*,'(A20,A,F10.5,A)') trim(par_K)              //tabchar, '-> [padrao: ',par%K                  ,'] K do neuronio'
+        write (*,'(A20,A,F10.5,A)') trim(par_T)              //tabchar, '-> [padrao: ',par%T                  ,'] T do neuronio'
+        write (*,'(A20,A,F10.5,A)') trim(par_d)              //tabchar, '-> [padrao: ',par%d                  ,'] delta do neuronio'
+        write (*,'(A20,A,F10.5,A)') trim(par_l)              //tabchar, '-> [padrao: ',par%l                  ,'] lambda do neuronio'
+        write (*,'(A20,A,F10.5,A)') trim(par_xR)             //tabchar, '-> [padrao: ',par%xR                 ,'] xR do neuronio'
+        write (*,'(A20,A,F10.5,A)') trim(par_Z)              //tabchar, '-> [padrao: ',par%Z                  ,'] Z do neuronio (campo externo de x(t) para 2-Tanh)'
+        write (*,'(A20,A,F10.5,A)') trim(par_H)              //tabchar, '-> [padrao: ',par%H                  ,'] H do neuronio (campo externo de y(t) para 2-Tanh)'
+        write (*,'(A20,A,I10.0,A)') trim(par_tTotal)         //tabchar, '-> [padrao: ',par%tTotal             ,'] total de passos de tempo'
+        write (*,'(A20,A,I10.0,A)') trim(par_tTransient)     //tabchar, '-> [padrao: ',par%tTransient         ,'] qtd de passos de tempo transiente a ser ignorada'
+        write (*,'(A20,A,A,A)'    ) trim(par_model)          //tabchar, '-> [padrao: ',trim(par%model)        ,'] Possiveis valores modelo logistico: L ; tanh: T ; 2-tanh: 2'
+        write (*,'(A20,A,A,A)'    ) trim(par_measure)        //tabchar, '-> [padrao: ',trim(par%measure)      ,'] Possiveis valores medir o ISI: ISI ; medir a amplitude: AMP; medir o winding number: WIN'
+        write (*,'(A20,A,A,A)'    ) trim(par_periodMethod)   //tabchar, '-> [padrao: ',trim(par%periodMethod) ,'] Metodo usado para medir o periodo do atrator.'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'Valores possiveis:'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'onthefly  -> mede durante os calculos (melhor para periodos pequenos)'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'aftersim1 -> mede apos a simulacao (mesmo metodo que onthefly, melhor para periodos longos)'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'aftersim2 -> mede apos a simulacao (melhor para periodos longos)'
+        write (*,'(A20,A,I10.0,A)') trim(par_writeOnRun)     //tabchar, '-> [padrao: ',writeonrun_val         ,'] Possiveis valores: 0 ou 1.'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'Se for 1, escreve os arquivos de dados durante a simulacao'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'(previne erro por falta de memoria)'
+        write (*,'(A20,A,I10.0,A)') trim(par_correctISI)     //tabchar, '-> [padrao: ',correctisi_val         ,'] Possiveis valores: 0 ou 1.'//nlchar//&
+                                                                            tabchar//tabchar//tabchar//tabchar//'Se for 1, ISI dentro de +-1 sao considerados iguais: ISI+1=ISI-1=ISI'
+        write (*,'(A20,A,A,A)'    ) trim(par_outFileSuffix)  //tabchar, '-> [padrao: ',trim(par%outFileSuffix),'] sufixo pro nome do arq de saida'
+        write (*,'(A20,A,A,A)'    ) trim(par_outFileDir)     //tabchar, '-> [padrao: ',trim(par%outFileDir)   ,'] diretorio pro  arq de saida'
+        write (*,'(A20,A)'        ) 'help,-h'                //tabchar, '-> mostra essa ajuda'
     end subroutine PrintHelp
 
 end module Input

@@ -26,7 +26,8 @@ module Simulation
     end interface
 
     private :: SimulaPara_phaseDiag_ISI, SimulaPara_phaseDiag_AMP, KTzLogIter, KTzTanhIter, K2TzIter, KTzIterator
-    private :: SimulaPara_phaseDiag_WIN, check_periodicity, GetJacobFunc, GetMapFunc
+    private :: SimulaPara_phaseDiag_WIN_aftersim2, check_periodicity, GetJacobFunc, GetMapFunc, find_period_chatgpt
+    private :: SimulaPara_phaseDiag_WIN_onthefly, SimulaPara_phaseDiag_WIN_aftersim1, SimulaPara_phaseDiag_WIN_wrapper
     private :: KTzLogJacob, KTzTanhJacob, K2TzJacob, KTzJacobMatrix, findFirstLoc, findTwoConsecLoc, CalcISIPeriod
     private :: unique, logisticFunc, UpdateInputKTzParams, UpdateInputKTzParamSpecific, GetInputKTzParams, logspace, linspace
     public  :: Simula, CalcLyapunovExp, findISI, findPeriod, calculate_and_find_period_test, SimulaMapa
@@ -207,7 +208,7 @@ contains
                     else if (isAMP) then
                         call SimulaPara_phaseDiag_AMP(neuPar, KTzFunc, KTzJac, isi_or_amp_or_w, intensity_or_cycles, ll_or_isiper_or_per)
                     else ! isWIN for winding number
-                        call SimulaPara_phaseDiag_WIN(neuPar, KTzFunc, isi_or_amp_or_w, intensity_or_cycles, ll_or_isiper_or_per)
+                        call SimulaPara_phaseDiag_WIN_wrapper(neuPar, KTzFunc, isi_or_amp_or_w, intensity_or_cycles, ll_or_isiper_or_per)
                     end if
                     n = size(isi_or_amp_or_w, 1)
                     do k = 1, n
@@ -244,7 +245,7 @@ contains
                     else if (isAMP) then
                         call SimulaPara_phaseDiag_AMP(neuPar, KTzFunc, KTzJac, isi_or_amp_or_w, intensity_or_cycles, ll_or_isiper_or_per)
                     else ! isWIN for winding number
-                        call SimulaPara_phaseDiag_WIN(neuPar, KTzFunc, isi_or_amp_or_w, intensity_or_cycles, ll_or_isiper_or_per)
+                        call SimulaPara_phaseDiag_WIN_wrapper(neuPar, KTzFunc, isi_or_amp_or_w, intensity_or_cycles, ll_or_isiper_or_per)
                     end if
                     n = size(isi_or_amp_or_w, 1)
                     do k = 1, n
@@ -369,13 +370,6 @@ contains
         if (.not.allocated(isiData)) then
             allocate(isiData(1:tEff)) ! alocando tEff valores para os isi
         end if
-        
-        !neuPar%K = K
-        !neuPar%T = T
-        !neuPar%d = d
-        !neuPar%l = l
-        !neuPar%xR = xR
-        !neuPar%H = H
 
         x = par%x0
         do t = 1,par%tTransient
@@ -389,23 +383,6 @@ contains
             !    exit
             !end if
         end do
-        !if (.not.isFP) then
-        !    t  = 0 ! time counter
-        !    tt = tEff / 2 ! tolerance time to start looking for FP
-        ! garantindo que o loop principal começara com x(i)<0
-        !do while (x(1) > par%xThreshold)
-        !    !xAnt = x(1)
-        !    !write(*,*) x
-        !    x = KTzFunc(neuPar, x)
-        !    !if ((dabs(x(1) - xAnt) <= 1.0e-8) .and. (t > tt)) then
-        !    !    ! if the dynamics is too slow, the system can lurk around a FP of the fast subsystem for too long, 
-        !    !    ! fooling this simple method to detect FP...
-        !    !    ! thus, we wait a period tt to start checking if we are at a fixed point
-        !    !    isFP = .true.
-        !    !    exit
-        !    !end if
-        !end do
-        !end if
 
         ! calculating ISI
         is_fp_counter = 0
@@ -537,7 +514,103 @@ contains
         lambda_lyapm = maxval(lambda_lyap / tTotal)
     end subroutine  SimulaPara_phaseDiag_AMP
 
-    subroutine SimulaPara_phaseDiag_WIN(neuPar, KTzFunc, windingnum, cycles, period)
+    subroutine SimulaPara_phaseDiag_WIN_wrapper(neuPar, KTzFunc, windingnum, cycles, period)
+        use Input
+        implicit none
+        real(kr8), allocatable, intent(inout)       :: windingnum(:), cycles(:), period(:)
+        type(KTzParam), intent(in)                  :: neuPar
+        procedure(KTzIterator), pointer, intent(in) :: KTzFunc
+
+        if (trim(par%periodMethod) == "onthefly") then
+            call SimulaPara_phaseDiag_WIN_onthefly(neuPar, KTzFunc, windingnum, cycles, period)
+        else if (trim(par%periodMethod) == "aftersim1") then
+            call SimulaPara_phaseDiag_WIN_aftersim1(neuPar, KTzFunc, windingnum, cycles, period)
+        else if (trim(par%periodMethod) == "aftersim2") then
+            call SimulaPara_phaseDiag_WIN_aftersim2(neuPar, KTzFunc, windingnum, cycles, period)
+        end if
+    end subroutine SimulaPara_phaseDiag_WIN_wrapper
+
+
+    subroutine SimulaPara_phaseDiag_WIN_aftersim2(neuPar, KTzFunc, windingnum, cycles, period)
+        use Input
+        implicit none
+        real(kr8), allocatable, intent(inout) :: windingnum(:), cycles(:), period(:)
+        real(kr8), allocatable :: x_values(:)
+        real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
+        !real(kr8), intent(in) :: K, T, d, l, xR, H
+        real(kr8) :: xAnt, tol ! , t2, ts, tsA
+        integer :: t, tEff, is_fp_counter, k, max_period, min_period
+        integer :: period_int, cycles_int
+        logical :: isFP, period_found
+        type(KTzParam), intent(in) :: neuPar
+        procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
+
+        if (.not.allocated(windingnum)) then
+            allocate(period(1:1), cycles(1:1), windingnum(1:1))
+        end if
+
+        isFP         = .false.
+        tEff         = par%tTotal - par%tTransient
+        max_period   = tEff    ! maximum possible period
+        min_period   = 1       ! minimum possible period (1=FP)
+        period       = -1      ! Initialize as -1 to indicate no period found
+        cycles       = 0       ! number of cycles within a period
+        tol          = par%periodTol !1.0D-8  ! Tolerance for floating-point comparison
+        period_found = .false. ! is it found
+        
+        if (.not.allocated(x_values)) then
+            allocate(x_values(1:tEff)) ! alocando tEff valores para os isi
+        end if
+        
+        x = par%x0
+        do t = 1,par%tTransient
+            x = KTzFunc(neuPar, x)
+        end do
+
+        do t = 1,tEff ! loop principal
+            xAnt        = x(1)
+            x           = KTzFunc(neuPar, x)
+            x_values(t) = x(1)
+            
+            ! checking if this is a FP
+            if ((dabs(x(1) - xAnt) < 1.0e-8)) then !.and. (t > (tEff/2))) then
+                is_fp_counter = is_fp_counter + 1
+            else
+                is_fp_counter = 0
+            end if
+            if (is_fp_counter > (tEff/2)) then ! this is a fixed point if the attractor stayed equal for too long
+                isFP         = .true.
+                period_found = .true.
+                period       = 1.0D0
+                period_int   = 1
+                cycles_int   = 0
+                exit
+            end if
+        end do
+        
+
+        if (.not.isFP) then
+            !write(*,*) "DEBUG ::: NOT fixed point"
+            period_int   = find_period_chatgpt(x_values, tol)
+            period_found = period_int > 0
+        
+            if (period_found) then
+                !write(*,*) "DEBUG ::: found period"
+                period     = dble(period_int)
+                max_period = period_int
+            else
+                period     = 1.0/0.0
+                max_period = tEff
+            end if
+
+            cycles_int = count_cycles(x_values, max_period, tEff, par%xThreshold)
+        end if
+        
+        cycles     = dble(cycles_int)
+        windingnum = cycles / period
+    end subroutine  SimulaPara_phaseDiag_WIN_aftersim2
+
+    subroutine SimulaPara_phaseDiag_WIN_onthefly(neuPar, KTzFunc, windingnum, cycles, period)
         use Input
         implicit none
         real(kr8), allocatable, intent(inout) :: windingnum(:), cycles(:), period(:)
@@ -561,7 +634,7 @@ contains
         min_period   = 1       ! minimum possible period (1=FP)
         period       = -1      ! Initialize as -1 to indicate no period found
         cycles       = 0       ! number of cycles within a period
-        tol          = 1.0D-8  ! Tolerance for floating-point comparison
+        tol          = par%periodTol !1.0D-8  ! Tolerance for floating-point comparison
         period_found = .false. ! is it found
         
         if (.not.allocated(x_values)) then
@@ -599,14 +672,14 @@ contains
             if (period_int > 0) then
                 !write(*,*) "DEBUG ::: found period"
                 period_found = .true.
-                cycles_int   = count_cycles(x_values(1:t,1),period_int,t,0.0D0)
+                cycles_int   = count_cycles(x_values(1:t,1),period_int,t,par%xThreshold)
                 exit
             end if
         end do
 
         !write(*,*) "DEBUG ::: NOT found period"
         if ((.not.isFP) .and. (.not.period_found)) then
-            cycles_int = count_cycles(x_values(1:,1),max_period,tEff,0.0D0)
+            cycles_int = count_cycles(x_values(1:,1),max_period,tEff,par%xThreshold)
         end if
 
         if ((.not.isFP) .and. (.not.period_found)) then
@@ -618,7 +691,86 @@ contains
         cycles     = dble(cycles_int)
         windingnum = cycles / period
 
-    end subroutine  SimulaPara_phaseDiag_WIN
+    end subroutine  SimulaPara_phaseDiag_WIN_onthefly
+
+    subroutine SimulaPara_phaseDiag_WIN_aftersim1(neuPar, KTzFunc, windingnum, cycles, period)
+        use Input
+        implicit none
+        real(kr8), allocatable, intent(inout) :: windingnum(:), cycles(:), period(:)
+        real(kr8), allocatable :: x_values(:,:)
+        real(kr8) :: x(3) ! x(1) = x, x(2) = y, x(3) = z
+        !real(kr8), intent(in) :: K, T, d, l, xR, H
+        real(kr8) :: xAnt, tol ! , t2, ts, tsA
+        integer :: t, tEff, is_fp_counter, k, max_period, min_period
+        integer :: period_int, cycles_int
+        logical :: isFP, period_found
+        type(KTzParam), intent(in) :: neuPar
+        procedure(KTzIterator),    pointer, intent(in) :: KTzFunc
+
+        if (.not.allocated(windingnum)) then
+            allocate(period(1:1), cycles(1:1), windingnum(1:1))
+        end if
+
+        isFP         = .false.
+        tEff         = par%tTotal - par%tTransient
+        max_period   = tEff    ! maximum possible period
+        min_period   = 1       ! minimum possible period (1=FP)
+        period       = -1      ! Initialize as -1 to indicate no period found
+        cycles       = 0       ! number of cycles within a period
+        tol          = par%periodTol !1.0D-8  ! Tolerance for floating-point comparison
+        period_found = .false. ! is it found
+        
+        if (.not.allocated(x_values)) then
+            allocate(x_values(1:tEff,1:3)) ! alocando tEff valores para os isi
+        end if
+        
+        x = par%x0
+        do t = 1,par%tTransient
+            x = KTzFunc(neuPar, x)
+        end do
+
+        do t = 1,tEff ! loop principal
+            xAnt            = x(1)
+            x               = KTzFunc(neuPar, x)
+            x_values(t,1:3) = x
+            
+            ! checking if this is a FP
+            if ((dabs(x(1) - xAnt) < 1.0e-8)) then !.and. (t > (tEff/2))) then
+                is_fp_counter = is_fp_counter + 1
+            else
+                is_fp_counter = 0
+            end if
+            if (is_fp_counter > (tEff/2)) then ! this is a fixed point if the attractor stayed equal for too long
+                isFP         = .true.
+                period_found = .true.
+                period       = 1.0D0
+                period_int   = 1
+                cycles_int   = 0
+                exit
+            end if
+        end do
+        
+
+        if (.not.isFP) then
+            !write(*,*) "DEBUG ::: NOT fixed point"
+            period_int   = check_periodicity(x_values(tEff,1:3), x_values, tEff, tol, tEff, min_period) !find_period_chatgpt(x_values, tol)
+            period_found = period_int > 0
+        
+            if (period_found) then
+                !write(*,*) "DEBUG ::: found period"
+                period     = dble(period_int)
+                max_period = period_int
+            else
+                period     = 1.0/0.0
+                max_period = tEff
+            end if
+
+            cycles_int = count_cycles(x_values(1:,1), max_period, tEff, par%xThreshold)
+        end if
+        
+        cycles     = dble(cycles_int)
+        windingnum = cycles / period
+    end subroutine  SimulaPara_phaseDiag_WIN_aftersim1
 
     subroutine SimulaMapa(neuPar, model, x0, t_trans, t_total, x_values)
         implicit none
@@ -1157,5 +1309,44 @@ contains
             end if
         end do
     end function check_periodicity
+
+
+
+    function find_period_chatgpt(x, tol) result(Q)
+        ! Find the smallest period Q of a periodic sequence x(t)
+        ! by checking if two consecutive points repeat within a given tolerance epsilon.
+        !
+        ! Inputs:
+        ! - x: A real vector of values representing x(t) at discrete time steps
+        ! - epsilon: Real tolerance for considering x(t+Q) approximately equal to x(t)
+        !
+        ! Output:
+        ! - Q: The period of the sequence if found; -1 if no period is found
+    
+        implicit none
+        real(kr8), intent(in) :: x(:)  ! Input vector
+        real(kr8), intent(in) :: tol  ! Tolerance for periodicity
+        integer :: Q  ! Resulting period, or -1 if not found
+        integer :: n, t, q_c  ! Length of x, time index, period candidate
+    
+        n = size(x)  ! Length of the input sequence
+        Q = -1  ! Default value if no period is found
+    
+        ! Loop over possible period values
+        do t = 1, n - 2
+            do q_c = 1, n - t - 1
+                ! Check if x(t) and x(t+1) approximately repeat at x(t+Q) and x(t+1+Q)
+                if ((dabs(x(t) - x(t + q_c)) <= tol) .and. (dabs(x(t + 1) - x(t + 1 + q_c)) <= tol)) then
+                    Q = q_c
+                    return
+                end if
+            end do
+        end do
+    
+    end function find_period_chatgpt
+
+    
+
+    
 
 end module Simulation 
